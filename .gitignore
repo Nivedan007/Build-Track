@@ -1,0 +1,17 @@
+node_modules
+.next
+dist
+build
+.env
+.env.*
+!.env.example
+coverage
+*.log
+.DS_Store
+__pycache__
+*.pyc
+.venv
+.vscode
+pnpm-lock.yaml
+package-lock.json
+yarn.lock

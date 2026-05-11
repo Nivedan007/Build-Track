@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  SITE_ENGINEER
+  PROJECT_MANAGER
+  CLIENT
+  WORKER
+}
+
+enum ProjectStatus {
+  PLANNING
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  DELAYED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model User {
+  id          String       @id @default(cuid())
+  name        String
+  email       String       @unique
+  password    String
+  role        Role
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  tasks       Task[]       @relation("AssignedTasks")
+  projects    Project[]    @relation("EngineerProjects")
+  attendance  Attendance[]
+}
+
+model Project {
+  id                 String        @id @default(cuid())
+  title              String
+  clientName         String
+  budget             Float
+  deadline           DateTime
+  location           String
+  progressPercentage Int           @default(0)
+  status             ProjectStatus @default(PLANNING)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  engineerId         String?
+  engineer           User?         @relation("EngineerProjects", fields: [engineerId], references: [id])
+  tasks              Task[]
+}
+
+model Task {
+  id          String       @id @default(cuid())
+  title       String
+  description String?
+  status      TaskStatus   @default(PENDING)
+  priority    TaskPriority @default(MEDIUM)
+  dueDate     DateTime
+  proofUrl    String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  projectId   String
+  project     Project      @relation(fields: [projectId], references: [id])
+  assignedTo  String?
+  assignee    User?        @relation("AssignedTasks", fields: [assignedTo], references: [id])
+}
+
+model Attendance {
+  id        String   @id @default(cuid())
+  workerId  String
+  worker    User     @relation(fields: [workerId], references: [id])
+  date      DateTime
+  status    String
+  createdAt DateTime @default(now())
+
+  @@unique([workerId, date])
+}

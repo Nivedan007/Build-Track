@@ -1,0 +1,33 @@
+version: "3.9"
+services:
+  client:
+    build: ./client
+    container_name: buildtrack_client
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  server:
+    build: ./server
+    container_name: buildtrack_server
+    ports:
+      - "5000:5000"
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - ./server:/app
+      - ./server/dev.db:/app/dev.db
+    depends_on:
+      - ai-service
+    restart: unless-stopped
+
+  ai-service:
+    build: ./ai-service
+    container_name: buildtrack_ai
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./ai-service/model:/app/model
+    restart: unless-stopped
+
+volumes: {}
