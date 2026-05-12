@@ -10,6 +10,7 @@ import aiRoutes from "./routes/ai.routes";
 import uploadRoutes from "./routes/upload.routes";
 import reportRoutes from "./routes/report.routes";
 import teamRoutes from "./routes/team.routes";
+import assistantRoutes from "./routes/assistant.routes";
 import { errorHandler } from "./middleware/errorHandler";
 
 const app = express();
@@ -81,6 +82,7 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/uploads", uploadRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/assistant", assistantRoutes);
 app.use("/api/team", teamRoutes);
 
 // Serve uploaded files with security headers
