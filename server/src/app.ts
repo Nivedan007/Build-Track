@@ -37,7 +37,20 @@ app.use(helmet({
 // CORS with strict origin checking
 app.use(
   cors({
-    origin: [env.corsOrigin, env.clientUrl],
+    origin: (origin, callback) => {
+      // Allow server-to-server and health checks with no Origin header.
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+
+      if (env.allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],

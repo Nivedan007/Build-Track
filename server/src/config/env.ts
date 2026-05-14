@@ -17,7 +17,19 @@ export const env = {
   s3Bucket: process.env.S3_BUCKET || "",
   // Security
   nodeEnv: process.env.NODE_ENV || "development",
-  corsOrigin: process.env.CORS_ORIGIN || "http://localhost:3000"
+  corsOrigin: process.env.CORS_ORIGIN || "http://localhost:3000",
+  allowedOrigins: [
+    process.env.CORS_ORIGIN,
+    process.env.CLIENT_URL,
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001"
+  ]
+    .filter(Boolean)
+    .flatMap((origin) => String(origin).split(",").map((entry) => entry.trim()))
+    .filter(Boolean)
+    .filter((origin, index, list) => list.indexOf(origin) === index)
 };
 
 if (!env.jwtSecret) {
