@@ -13,6 +13,10 @@ export default function Notifications() {
 
   useEffect(() => {
     if (isDemoMode) {
+      setNotices([
+        { id: "demo-1", text: "Demo mode active: notifications are simulated locally.", type: "info" },
+        { id: "demo-2", text: "Deploy a backend to receive live project updates.", type: "warning" }
+      ]);
       return;
     }
 

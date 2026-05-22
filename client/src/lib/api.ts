@@ -3,143 +3,172 @@ import { useAuthStore } from "@/lib/store";
 import { demoProjects, demoTasks } from "@/lib/mock";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, "") ?? "";
-const DEMO_TOKEN = process.env.NEXT_PUBLIC_DEMO_TOKEN || "demo-admin-token";
+const DEMO_TOKEN = process.env.NEXT_PUBLIC_DEMO_TOKEN?.trim() || "demo-admin-token";
 
-type AxiosLikeResponse<T> = Promise<{ data: T }>;
+type ApiResponse<T> = Promise<{ data: T }>;
 
-function makeResponse<T>(data: T): AxiosLikeResponse<T> {
-  return Promise.resolve({ data });
-}
+type LoginPayload = { email?: string; password?: string };
+type ForecastPayload = {
+  weatherRisk?: number;
+  pastDelays?: number;
+  attendanceRate?: number;
+  materialShortages?: number;
+  currentProgress?: number;
+};
 
-function toTaskPayload() {
-  return demoTasks.map((task, index) => ({
-    id: task.id,
-    title: task.title,
-    priority: task.priority,
-    status: task.status,
-    dueDate: task.dueDate,
-    assignee: { name: task.assignedTo || `Assignee ${index + 1}` }
-  }));
-}
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function toTeamPayload() {
-  return {
-    team: [
-      { id: "cmp-team-1", name: "Arun Engineer", role: "SITE_ENGINEER", location: "Chennai", utilization: 86, status: "On Site" },
-      { id: "cmp-team-2", name: "Mira Safety", role: "SITE_ENGINEER", location: "Bengaluru", utilization: 78, status: "On Site" },
-      { id: "cmp-team-3", name: "Rahul PM", role: "PROJECT_MANAGER", location: "Remote", utilization: 69, status: "Hybrid" }
-    ],
-    metrics: {
-      activeWorkforce: 187,
-      safetyCertifiedRate: 93,
-      openPositions: 2,
-      avgUtilization: 78
-    }
-  };
-}
+const createAxiosError = (status: number, message: string) => ({
+  response: {
+    status,
+    data: { message }
+  }
+});
 
-function toReportsPayload() {
-  return {
-    reports: [
-      { name: "Weekly Delivery Summary", owner: "Rahul PM", updated: new Date().toISOString(), status: "Ready" },
-      { name: "Safety Compliance Digest", owner: "Mira Safety", updated: new Date().toISOString(), status: "Ready" },
-      { name: "Procurement Risk Board", owner: "Arun Engineer", updated: new Date().toISOString(), status: "In Review" }
-    ],
-    metrics: {
-      reportCoverage: 92,
-      forecastAccuracy: 88,
-      dueSoonTasks: demoTasks.filter((task) => task.status !== "COMPLETED").length
-    }
-  };
-}
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-function toPredictionPayload(input: Record<string, number>) {
-  const riskScore = Math.min(1, Math.max(0, (input.weatherRisk ?? 0) * 0.35 + (input.materialShortages ?? 0) * 0.08 + (input.pastDelays ?? 0) * 0.05 + (1 - (input.attendanceRate ?? 1)) * 0.5 + (1 - (input.currentProgress ?? 0) / 100) * 0.25));
-  const riskBand = riskScore > 0.62 ? "HIGH" : riskScore > 0.35 ? "MEDIUM" : "LOW";
-  const completion = new Date();
-  completion.setDate(completion.getDate() + (riskBand === "HIGH" ? 28 : riskBand === "MEDIUM" ? 18 : 7));
+const buildForecast = (payload: ForecastPayload) => {
+  const weatherRisk = payload.weatherRisk ?? 0;
+  const pastDelays = payload.pastDelays ?? 0;
+  const attendanceRate = payload.attendanceRate ?? 1;
+  const materialShortages = payload.materialShortages ?? 0;
+  const currentProgress = payload.currentProgress ?? 0;
 
-  return {
-    delayProbability: Number(riskScore.toFixed(2)),
-    estimatedCompletionDate: completion.toISOString(),
-    riskBand
-  };
-}
+  const delayProbability = clamp(
+    0.08 + weatherRisk * 0.28 + pastDelays * 0.05 + (1 - attendanceRate) * 0.35 + materialShortages * 0.04 + (1 - currentProgress / 100) * 0.12,
+    0.04,
+    0.95
+  );
 
-function toAssistantPayload(message: string) {
-  const lower = message.toLowerCase();
-  if (lower.includes("delay") || lower.includes("risk")) {
-    return { answer: "Two projects need attention. Procurement delays and weather risk are the main drivers. Recommend escalation and schedule resequencing.", followUp: "Do you want the high-risk projects list next?" };
+  const riskBand = delayProbability >= 0.65 ? "HIGH" : delayProbability >= 0.35 ? "MEDIUM" : "LOW";
+  const dateOffsetDays = riskBand === "HIGH" ? 21 : riskBand === "MEDIUM" ? 12 : 6;
+  const estimatedCompletionDate = new Date(Date.now() + dateOffsetDays * 24 * 60 * 60 * 1000).toISOString();
+
+  return { delayProbability, estimatedCompletionDate, riskBand } as const;
+};
+
+const buildAssistantAnswer = (message: string) => {
+  const text = message.toLowerCase();
+
+  if (text.includes("delayed")) {
+    return {
+      answer: `Demo mode: ${demoProjects.filter((project) => project.status === "DELAYED").length} project is delayed. Highest risk: ${demoProjects[1].title}.`,
+      followUp: "Open Reports to inspect the delay trend."
+    };
   }
 
-  if (lower.includes("team")) {
-    return { answer: "Workforce utilization is balanced overall. Site engineers are near target, and safety certification remains above threshold.", followUp: "I can show the team overview next." };
+  if (text.includes("team load") || text.includes("workload")) {
+    return {
+      answer: `Demo mode: workforce load is balanced. Sample tasks are assigned across ${demoTasks.length} active items.`,
+      followUp: "Check Team for role distribution."
+    };
   }
 
-  if (lower.includes("budget")) {
-    return { answer: "Budget utilization is within target, with the biggest pressure coming from procurement and rework exposure.", followUp: "Want a project-level budget summary?" };
+  if (text.includes("budget")) {
+    return {
+      answer: "Demo mode: budget utilization is tracking inside target range for the active projects.",
+      followUp: "Review the dashboard metrics for cost control."
+    };
   }
 
-  return { answer: "I can help with projects, tasks, reports, team load, login roles, or AI forecasts.", followUp: "Try asking about delayed projects or team utilization." };
-}
-
-function toLoginPayload(email: string, password: string) {
-  if (email.toLowerCase() !== "admin@buildtrack.ai" || password !== "BuildTrack@123") {
-    const error = new Error("Invalid email or password");
-    // @ts-expect-error - attach response data for callers that inspect axios-style errors
-    error.response = { status: 401, data: { message: "Invalid email or password" } };
-    throw error;
+  if (text.includes("ai analyst") || text.includes("forecast")) {
+    return {
+      answer: "Demo mode: AI Analyst can estimate delay risk, highlight high-risk projects, and recommend intervention steps.",
+      followUp: "Try the AI Analyst page for a sample forecast."
+    };
   }
 
   return {
-    message: "Login successful",
-    token: DEMO_TOKEN,
-    user: { id: "cmp-admin-demo", name: "Admin", email: "admin@buildtrack.ai", role: "ADMIN" }
+    answer: "Demo mode: I can summarize projects, tasks, reports, team load, and forecast risk without a live backend.",
+    followUp: "Ask about delayed projects, budget status, or AI forecasts."
   };
-}
+};
 
-async function demoGet(path: string) {
-  if (path === "/projects") return makeResponse({ projects: demoProjects });
-  if (path === "/tasks") return makeResponse({ tasks: toTaskPayload() });
-  if (path === "/reports/summary") return makeResponse(toReportsPayload());
-  if (path === "/team/overview") return makeResponse(toTeamPayload());
-  if (path === "/auth/profile") return makeResponse({ user: { id: "cmp-admin-demo", name: "Admin", email: "admin@buildtrack.ai", role: "ADMIN" } });
-  return makeResponse({});
-}
+const buildUploadUrl = (formData: FormData) => {
+  const proof = formData.get("proof");
+  const fileName = proof instanceof File ? proof.name : "proof-upload";
+  return `demo://uploads/${encodeURIComponent(fileName)}`;
+};
 
-async function demoPost(path: string, payload: any) {
-  if (path === "/auth/login") return makeResponse(toLoginPayload(payload?.email ?? "", payload?.password ?? ""));
-  if (path === "/ai/predict-delay") return makeResponse(toPredictionPayload(payload ?? {}));
-  if (path === "/assistant/chat") return makeResponse(toAssistantPayload(String(payload?.message ?? "")));
-  if (path === "/uploads/task-proof") return makeResponse({ url: `demo://proof/${Date.now()}` });
-  return makeResponse({});
-}
-
-export const api = axios.create({
+const axiosApi = axios.create({
   baseURL: "/api"
 });
 
-export const hasConfiguredApiUrl = Boolean(API_URL);
-export const configuredApiUrl = API_URL || "http://localhost:5001";
-export const isDemoMode = !hasConfiguredApiUrl;
-
-const realGet = api.get.bind(api);
-const realPost = api.post.bind(api);
-
-api.get = (async (path: string, config?: any) => {
-  if (isDemoMode) return demoGet(path);
-  return realGet(path, config);
-}) as typeof api.get;
-
-api.post = (async (path: string, payload?: any, config?: any) => {
-  if (isDemoMode) return demoPost(path, payload);
-  return realPost(path, payload, config);
-}) as typeof api.post;
-
-api.interceptors.request.use((config) => {
+axiosApi.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
 });
+
+export const hasConfiguredApiUrl = Boolean(API_URL);
+export const configuredApiUrl = API_URL || "http://localhost:5001";
+export const isDemoMode = !hasConfiguredApiUrl;
+
+const mockApi = {
+  get: async (path: string): ApiResponse<any> => {
+    await delay(120);
+
+    switch (path) {
+      case "/projects":
+        return { data: { projects: demoProjects } };
+
+      default:
+        throw createAxiosError(404, `Demo mode does not implement ${path}`);
+    }
+  },
+  post: async (path: string, payload?: any, config?: any): ApiResponse<any> => {
+    await delay(180);
+
+    switch (path) {
+      case "/auth/login": {
+        const body = (payload || {}) as LoginPayload;
+        const email = (body.email || "").trim().toLowerCase();
+        const password = body.password || "";
+
+        if (email === "admin@buildtrack.ai" && password === "BuildTrack@123") {
+          return {
+            data: {
+              message: "Login successful",
+              token: DEMO_TOKEN,
+              user: {
+                id: "demo-admin",
+                name: "Admin",
+                email: "admin@buildtrack.ai",
+                role: "ADMIN"
+              }
+            }
+          };
+        }
+
+        throw createAxiosError(401, "Invalid email or password");
+      }
+
+      case "/ai/predict-delay": {
+        return { data: buildForecast(payload || {}) };
+      }
+
+      case "/assistant/chat": {
+        const message = typeof payload?.message === "string" ? payload.message : "";
+        return { data: buildAssistantAnswer(message) };
+      }
+
+      case "/uploads/task-proof": {
+        const formData = payload as FormData;
+        if (typeof FormData !== "undefined" && formData instanceof FormData) {
+          const progressCallback = config?.onUploadProgress;
+          progressCallback?.({ loaded: 1, total: 1 } as any);
+          return { data: { url: buildUploadUrl(formData) } };
+        }
+
+        return { data: { url: "demo://uploads/proof-upload" } };
+      }
+
+      default:
+        throw createAxiosError(404, `Demo mode does not implement ${path}`);
+    }
+  }
+};
+
+export const api = hasConfiguredApiUrl ? axiosApi : mockApi;

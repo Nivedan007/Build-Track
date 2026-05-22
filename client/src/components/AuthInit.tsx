@@ -10,7 +10,7 @@ export default function AuthInit() {
       return;
     }
 
-    const token = process.env.NEXT_PUBLIC_DEMO_TOKEN;
+    const token = process.env.NEXT_PUBLIC_DEMO_TOKEN?.trim() || "demo-admin-token";
     if (token) {
       useAuthStore.getState().setAuth(token, "ADMIN");
     }

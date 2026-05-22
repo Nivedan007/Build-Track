@@ -33,7 +33,7 @@ export default function UploadProof({ onDone }: { onDone?: (url: string) => void
     try {
       const res = await api.post("/uploads/task-proof", form, {
         headers: { "Content-Type": "multipart/form-data" },
-        onUploadProgress: (e) => {
+        onUploadProgress: (e: { loaded: number; total?: number | null }) => {
           if (e.total) setProgress(Math.round((e.loaded / e.total) * 100));
         }
       });

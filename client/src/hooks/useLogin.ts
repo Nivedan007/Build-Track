@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
-import { api, configuredApiUrl, hasConfiguredApiUrl, isDemoMode } from "@/lib/api";
+import { api } from "@/lib/api";
 
 interface LoginError {
   message: string;
@@ -19,24 +19,6 @@ export const useLogin = () => {
     setLoading(true);
 
     try {
-      if (isDemoMode) {
-        const response = await api.post("/auth/login", {
-          email: email.trim(),
-          password
-        });
-
-        const token = response.data.token;
-        const role = response.data.user?.role ?? "ADMIN";
-        setAuth(token, role);
-        setLoading(false);
-
-        setTimeout(() => {
-          router.push("/dashboard");
-        }, 300);
-
-        return true;
-      }
-
       // Validation
       if (!email?.trim()) {
         setError({ message: "Email is required", field: "email" });
