@@ -17,7 +17,7 @@ import { statusSplit, weeklyProgress } from "@/lib/mock";
 export function ProgressChart() {
   return (
     <div className="grid gap-6 lg:grid-cols-2">
-      <div className="glass rounded-2xl p-4">
+      <div className="glass rounded-2xl border border-slate-700/60 bg-slate-950/60 p-4 backdrop-blur-2xl">
         <h3 className="mb-4 text-lg font-semibold">Progress vs Budget</h3>
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">
@@ -34,7 +34,7 @@ export function ProgressChart() {
         </div>
       </div>
 
-      <div className="glass rounded-2xl p-4">
+      <div className="glass rounded-2xl border border-slate-700/60 bg-slate-950/60 p-4 backdrop-blur-2xl">
         <h3 className="mb-4 text-lg font-semibold">Project Status Split</h3>
         <div className="h-72">
           <ResponsiveContainer width="100%" height="100%">

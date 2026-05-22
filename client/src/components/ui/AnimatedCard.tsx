@@ -16,7 +16,7 @@ export function AnimatedCard({
       initial={{ y: 28, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.45 }}
-      className="glass rounded-2xl p-5 shadow-xl"
+      className="glass rounded-2xl border border-slate-700/60 bg-slate-950/60 p-5 shadow-[0_18px_50px_rgba(2,8,23,0.35)] backdrop-blur-2xl"
     >
       <p className="text-sm text-slate-400">{title}</p>
       <h3 className="mt-2 text-3xl font-semibold text-white">{value}</h3>

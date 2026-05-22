@@ -30,7 +30,7 @@ export function TopBar() {
   };
 
   return (
-    <header className="glass sticky top-3 z-30 mx-auto mt-4 w-[95%] max-w-7xl rounded-2xl px-4 py-3 md:px-6">
+    <header className="glass sticky top-3 z-30 mx-auto mt-4 w-[95%] max-w-[1600px] rounded-[1.6rem] border border-slate-700/60 bg-slate-950/70 px-4 py-3 backdrop-blur-2xl md:px-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 text-cyan-300">
@@ -53,7 +53,7 @@ export function TopBar() {
           </span>
         </div>
 
-        <nav className="hidden gap-1 rounded-xl border border-slate-700/60 bg-slate-950/40 p-1 text-sm text-slate-300 lg:flex lg:self-end">
+        <nav className="hidden gap-1 rounded-2xl border border-slate-700/60 bg-slate-950/40 p-1.5 text-sm text-slate-300 lg:flex lg:self-end">
           {navItems.map((item) => (
             <Link
               key={item.href}
@@ -70,14 +70,14 @@ export function TopBar() {
         </nav>
 
         <div className="flex items-center gap-2 lg:self-end">
-          <button className="grid h-9 w-9 place-items-center rounded-lg border border-slate-700/60 bg-slate-900/50 text-slate-300 transition hover:text-white hover:border-cyan-500/40">
+          <button className="grid h-10 w-10 place-items-center rounded-xl border border-slate-700/60 bg-slate-900/60 text-slate-300 transition hover:border-cyan-500/40 hover:text-white">
             <Search className="h-4 w-4" />
           </button>
           <NotificationBell />
           <div className="relative">
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
-              className="grid h-9 w-9 place-items-center rounded-lg border border-slate-700/60 bg-slate-900/50 text-slate-300 transition hover:text-white hover:border-cyan-500/40"
+              className="grid h-10 w-10 place-items-center rounded-xl border border-slate-700/60 bg-slate-900/60 text-slate-300 transition hover:border-cyan-500/40 hover:text-white"
             >
               <MoreVertical className="h-4 w-4" />
             </button>
@@ -87,7 +87,7 @@ export function TopBar() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="absolute right-0 top-10 w-48 bg-slate-900 border border-slate-700/50 rounded-lg shadow-xl z-50"
+                  className="absolute right-0 top-12 w-52 rounded-2xl border border-slate-700/50 bg-slate-900/95 shadow-xl backdrop-blur-2xl z-50"
                 >
                   <Link
                     href="/documents"
@@ -114,7 +114,7 @@ export function TopBar() {
               )}
             </AnimatePresence>
           </div>
-          <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-xs font-semibold text-white shadow-lg shadow-cyan-500/20">
+          <div className="grid h-10 w-10 place-items-center rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 text-xs font-semibold text-white shadow-lg shadow-cyan-500/20">
             U
           </div>
         </div>
