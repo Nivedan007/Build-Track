@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Search, Building2, Globe2, ShieldCheck, Settings, LogOut, FileText, MoreVertical } from "lucide-react";
+import Image from "next/image";
+import { Search, Globe2, ShieldCheck, Settings, LogOut, FileText, MoreVertical } from "lucide-react";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useAuthStore } from "@/lib/store";
 import { useState } from "react";
@@ -33,8 +34,8 @@ export function TopBar() {
     <header className="glass sticky top-3 z-30 mx-auto mt-4 w-[95%] max-w-[1600px] rounded-[1.6rem] border border-slate-700/60 bg-slate-950/70 px-4 py-3 backdrop-blur-2xl md:px-6">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 text-cyan-300">
-            <Building2 className="h-5 w-5" />
+          <div className="grid h-11 w-11 place-items-center overflow-hidden rounded-xl border border-slate-700/60 bg-slate-950/80 shadow-[0_10px_30px_rgba(2,8,23,0.35)]">
+            <Image src="/brand-logo.svg" alt="BuildTrack AI logo" width={44} height={44} className="h-full w-full object-cover" priority />
           </div>
           <div className="min-w-0">
             <p className="truncate text-xs uppercase tracking-[0.16em] text-cyan-300">BuildTrack AI</p>
