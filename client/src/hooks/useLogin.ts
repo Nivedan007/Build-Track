@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
-import { api } from "@/lib/api";
+import { api, configuredApiUrl, hasConfiguredApiUrl } from "@/lib/api";
 
 interface LoginError {
   message: string;
@@ -68,6 +68,18 @@ export const useLogin = () => {
       return true;
     } catch (err: any) {
       setLoading(false);
+
+      const runningInProduction = process.env.NODE_ENV === "production";
+      const apiLooksLocal = /localhost|127\.0\.0\.1/i.test(configuredApiUrl);
+
+      if (runningInProduction && (!hasConfiguredApiUrl || apiLooksLocal)) {
+        setError({
+          message:
+            "Production API is not configured. Set NEXT_PUBLIC_API_URL to your deployed backend URL, redeploy Vercel, and make sure the server is running with DATABASE_URL and JWT_SECRET.",
+          field: "general"
+        });
+        return false;
+      }
 
       if (err.response?.status === 401) {
         setError({ message: "Invalid email or password", field: "general" });
