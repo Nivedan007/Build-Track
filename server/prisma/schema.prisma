@@ -90,3 +90,12 @@ model Attendance {
 
   @@unique([workerId, date])
 }
+
+model Design {
+  id        String   @id @default(cuid())
+  ownerId   String?
+  name      String   @default("Untitled Design")
+  data      Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

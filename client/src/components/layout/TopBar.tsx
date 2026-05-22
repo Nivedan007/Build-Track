@@ -13,6 +13,8 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/ai-analyst", label: "AI Analyst" },
   { href: "/projects", label: "Projects" },
+  { href: "/designer", label: "Designer" },
+  { href: "/designs", label: "Designs" },
   { href: "/tasks", label: "Tasks" },
   { href: "/reports", label: "Reports" },
   { href: "/team", label: "Team" },

@@ -11,6 +11,7 @@ import uploadRoutes from "./routes/upload.routes";
 import reportRoutes from "./routes/report.routes";
 import teamRoutes from "./routes/team.routes";
 import assistantRoutes from "./routes/assistant.routes";
+import designRoutes from "./routes/design.routes";
 import { errorHandler } from "./middleware/errorHandler";
 import adminRoutes from "./routes/admin.routes";
 
@@ -99,6 +100,7 @@ app.use("/api/reports", reportRoutes);
 app.use("/api/assistant", assistantRoutes);
 app.use("/api/team", teamRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/designs", designRoutes);
 
 // Serve uploaded files with security headers
 import path from "path";
