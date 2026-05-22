@@ -57,19 +57,30 @@ export default function LoginPage() {
       />
 
       <TopBar />
-      <section className="mx-auto mt-10 w-[92%] max-w-7xl">
-        <div className="grid gap-8 overflow-hidden rounded-[2.5rem] border border-slate-700/60 bg-[linear-gradient(135deg,rgba(2,6,23,0.98),rgba(15,23,42,0.98))] p-5 shadow-[0_30px_90px_rgba(2,8,23,0.68)] lg:grid-cols-[1.14fr_0.86fr] lg:p-8">
-          <motion.div
+      <section className="mx-auto mt-10 w-[92%] max-w-[1600px]">
+        <div className="grid min-h-[calc(100vh-10rem)] overflow-hidden rounded-[2.5rem] border border-slate-700/60 bg-[linear-gradient(135deg,rgba(2,6,23,0.98),rgba(15,23,42,0.98))] shadow-[0_40px_120px_rgba(2,8,23,0.72)] xl:grid-cols-[1.45fr_0.75fr]">
+          <motion.section
             initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative overflow-hidden rounded-[2rem] border border-slate-700/60 bg-[linear-gradient(180deg,rgba(15,23,42,0.94),rgba(2,6,23,0.96))] p-6 lg:p-8"
+            className="relative flex min-h-[42rem] flex-col justify-between overflow-hidden p-6 sm:p-8 xl:p-10"
           >
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(56,189,248,0.22),transparent_28%),radial-gradient(circle_at_bottom_left,rgba(34,197,94,0.16),transparent_26%),radial-gradient(circle_at_80%_15%,rgba(245,158,11,0.12),transparent_18%),linear-gradient(135deg,rgba(15,23,42,0.12),rgba(2,6,23,0.52))]" />
-            <div className="absolute inset-y-0 left-0 w-1.5 bg-gradient-to-b from-sky-400 via-cyan-300 to-emerald-400 opacity-80" />
+            <div className="absolute inset-0">
+              <Image
+                src="/construction-hero.svg"
+                alt="Construction project hero backdrop"
+                fill
+                priority
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(2,6,23,0.78)_0%,rgba(2,6,23,0.48)_40%,rgba(2,6,23,0.82)_100%),linear-gradient(180deg,rgba(2,6,23,0.20),rgba(2,6,23,0.70))]" />
+            </div>
+
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(56,189,248,0.18),transparent_28%),radial-gradient(circle_at_70%_25%,rgba(34,197,94,0.14),transparent_20%),radial-gradient(circle_at_bottom_right,rgba(245,158,11,0.08),transparent_24%)]" />
+
             <motion.div
               animate={{ y: [0, -8, 0] }}
               transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute right-6 top-6 rounded-2xl border border-slate-700/70 bg-slate-950/80 px-4 py-3 shadow-2xl shadow-sky-400/10 backdrop-blur"
+              className="absolute right-6 top-6 rounded-2xl border border-slate-700/70 bg-slate-950/70 px-4 py-3 shadow-2xl shadow-sky-400/10 backdrop-blur"
             >
               <p className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-sky-300">
                 <LockKeyhole className="h-3.5 w-3.5" />
@@ -77,70 +88,57 @@ export default function LoginPage() {
               </p>
               <p className="mt-2 text-sm font-semibold text-white">Enterprise grade login</p>
             </motion.div>
-            <div className="relative z-10">
-              <p className="inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-4 py-2 text-xs uppercase tracking-[0.22em] text-sky-300 shadow-[0_0_30px_rgba(56,189,248,0.10)]">
-                <Sparkles className="h-3.5 w-3.5" />
-                Executive Access
-              </p>
 
-              <h2 className="mt-6 max-w-2xl text-4xl font-bold leading-[1.02] tracking-tight text-white drop-shadow-[0_0_28px_rgba(56,189,248,0.12)] md:text-6xl">
-                A sharper control room for modern construction teams.
-              </h2>
-
-              <p className="mt-5 max-w-2xl text-base text-slate-300 md:text-lg">
-                Sign in to a refined command center built for project leaders, site engineers, and executive teams who need live clarity across every site.
-              </p>
-
-              <div className="mt-8 flex flex-wrap gap-3">
-                <div className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-950/55 px-4 py-2 text-sm text-slate-200">
+            <div className="relative z-10 max-w-4xl">
+              <div className="flex flex-wrap items-center gap-3 text-sm text-slate-200/90">
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-md">
                   <Globe2 className="h-4 w-4 text-sky-300" /> Global control center
-                </div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-950/55 px-4 py-2 text-sm text-slate-200">
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-md">
                   <Workflow className="h-4 w-4 text-emerald-300" /> Live workflow orchestration
-                </div>
-                <div className="inline-flex items-center gap-2 rounded-full border border-slate-700/70 bg-slate-950/55 px-4 py-2 text-sm text-slate-200">
-                  <ShieldCheck className="h-4 w-4 text-amber-300" /> Role-based governance
-                </div>
+                </span>
               </div>
 
-              <div className="mt-8 grid gap-4 md:grid-cols-[1.4fr_0.6fr]">
-                <div className="overflow-hidden rounded-[1.9rem] border border-slate-700/60 bg-[linear-gradient(180deg,rgba(15,23,42,0.75),rgba(2,6,23,0.92))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                  <Image
-                    src="/login-hero.svg"
-                    alt="BuildTrack AI dashboard illustration"
-                    width={1200}
-                    height={1200}
-                    className="h-auto w-full rounded-[1.25rem] shadow-[0_18px_50px_rgba(2,8,23,0.5)]"
-                    priority
-                  />
-                </div>
+              <h2 className="mt-8 max-w-3xl text-5xl font-semibold leading-[0.95] tracking-tight text-white drop-shadow-[0_0_28px_rgba(56,189,248,0.12)] sm:text-6xl lg:text-7xl">
+                Building What
+                <span className="block font-[cursive] italic text-sky-100 drop-shadow-[0_0_18px_rgba(56,189,248,0.22)]">Matters</span>
+                To You
+              </h2>
 
-                <div className="grid gap-4">
-                  <div className="rounded-[1.5rem] border border-slate-700/60 bg-slate-950/55 p-4 backdrop-blur-xl">
-                    <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Today</p>
-                    <p className="mt-3 text-3xl font-bold text-white">12</p>
-                    <p className="mt-1 text-sm text-slate-400">critical actions in motion</p>
-                  </div>
-                  <div className="rounded-[1.5rem] border border-slate-700/60 bg-slate-950/55 p-4 backdrop-blur-xl">
-                    <p className="text-xs uppercase tracking-[0.18em] text-slate-400">Sites online</p>
-                    <p className="mt-3 text-3xl font-bold text-white">187</p>
-                    <p className="mt-1 text-sm text-slate-400">active crew members tracked</p>
-                  </div>
-                  <div className="rounded-[1.5rem] border border-slate-700/60 bg-gradient-to-br from-sky-400/18 via-slate-950/55 to-emerald-400/12 p-4 backdrop-blur-xl">
-                    <TrendingUp className="h-5 w-5 text-sky-300" />
-                    <p className="mt-3 text-3xl font-bold text-white">94%</p>
-                    <p className="mt-1 text-sm text-slate-300">forecast confidence</p>
-                  </div>
+              <p className="mt-6 max-w-2xl text-base text-slate-200/90 sm:text-lg">
+                Sign in to a premium command center built for project leaders, site engineers, and executive teams who need live clarity across every site.
+              </p>
+
+              <div className="mt-8 flex items-center gap-3 text-sm font-medium uppercase tracking-[0.22em] text-white/85">
+                <span>What do you want to build?</span>
+                <span className="h-px w-20 bg-gradient-to-r from-sky-300 to-transparent" />
+              </div>
+
+              <div className="mt-8 grid gap-4 md:grid-cols-3">
+                <div className="rounded-[1.5rem] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
+                  <TrendingUp className="h-5 w-5 text-sky-300" />
+                  <p className="mt-4 text-3xl font-semibold text-white">94%</p>
+                  <p className="mt-1 text-sm text-slate-300">Delivery confidence</p>
+                </div>
+                <div className="rounded-[1.5rem] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
+                  <ShieldCheck className="h-5 w-5 text-emerald-300" />
+                  <p className="mt-4 text-3xl font-semibold text-white">Role-based</p>
+                  <p className="mt-1 text-sm text-slate-300">Secure team access</p>
+                </div>
+                <div className="rounded-[1.5rem] border border-white/10 bg-white/8 p-4 backdrop-blur-md">
+                  <Users className="h-5 w-5 text-amber-300" />
+                  <p className="mt-4 text-3xl font-semibold text-white">Live</p>
+                  <p className="mt-1 text-sm text-slate-300">Multi-team coordination</p>
                 </div>
               </div>
             </div>
-          </motion.div>
+          </motion.section>
 
           <motion.form
             onSubmit={handleSubmit}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="glass rounded-[2rem] border border-slate-700/60 bg-slate-950/65 p-8 shadow-[0_20px_70px_rgba(2,8,23,0.45)] backdrop-blur-2xl"
+            className="relative flex flex-col justify-center border-t border-slate-700/60 bg-slate-950/78 p-6 backdrop-blur-2xl xl:border-l xl:border-t-0 xl:p-10"
           >
             <div className="flex items-center justify-between gap-4">
               <div>
