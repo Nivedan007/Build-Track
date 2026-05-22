@@ -19,6 +19,7 @@ async function main() {
     });
 
     console.log("Created admin:", admin.email);
+    console.log("Admin ID:", admin.id);
     const token = signToken({ userId: admin.id, role: admin.role, email: admin.email });
     console.log("Demo admin token (use in client .env):", token);
   } else {
@@ -38,7 +39,7 @@ async function main() {
     const exists = await prisma.user.findUnique({ where: { email: person.email } });
     if (!exists) {
       const hash = await bcrypt.hash("BuildTrack@123", 10);
-      await prisma.user.create({
+      const created = await prisma.user.create({
         data: {
           name: person.name,
           email: person.email,
@@ -46,7 +47,7 @@ async function main() {
           role: person.role
         }
       });
-      console.log(`Created user: ${person.email}`);
+      console.log(`Created user: ${person.email} - ID: ${created.id}`);
     }
   }
 
@@ -138,6 +139,10 @@ async function main() {
     }
 
     console.log("Backfilled project/task assignments for team analytics.");
+    // Log summary of key user ids for convenience
+    const allUsers = await prisma.user.findMany({ select: { id: true, email: true, role: true } });
+    console.log("User summary:");
+    allUsers.forEach((u) => console.log(`- ${u.email} (${u.role}): ${u.id}`));
   }
 
   console.log("Seeding complete.");

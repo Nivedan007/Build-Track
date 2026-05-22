@@ -12,6 +12,7 @@ import reportRoutes from "./routes/report.routes";
 import teamRoutes from "./routes/team.routes";
 import assistantRoutes from "./routes/assistant.routes";
 import { errorHandler } from "./middleware/errorHandler";
+import adminRoutes from "./routes/admin.routes";
 
 const app = express();
 
@@ -97,6 +98,7 @@ app.use("/api/uploads", uploadRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/assistant", assistantRoutes);
 app.use("/api/team", teamRoutes);
+app.use("/api/admin", adminRoutes);
 
 // Serve uploaded files with security headers
 import path from "path";
