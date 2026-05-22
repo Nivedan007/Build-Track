@@ -8,7 +8,9 @@
     "start": "node dist/index.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev --name init",
-    "seed": "tsx src/seed.ts"
+    "prisma:deploy": "prisma migrate deploy",
+    "seed": "tsx src/seed.ts",
+    "seed:prod": "node dist/seed.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1045.0",

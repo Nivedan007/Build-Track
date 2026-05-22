@@ -4,13 +4,16 @@ WORKDIR /app
 
 # Install dependencies
 COPY package.json package-lock.json* tsconfig.json ./
+RUN npm ci
+
+# Generate Prisma client before build
 COPY prisma ./prisma
-RUN npm ci --production || npm install --production
+RUN npx prisma generate
 
-# Copy source and build
+# Copy source and compile
 COPY . .
-RUN npm run build
+RUN npm run build && npm prune --omit=dev
 
-EXPOSE 5000
+EXPOSE 10000
 
-CMD ["node", "dist/index.js"]
+CMD ["npm", "start"]

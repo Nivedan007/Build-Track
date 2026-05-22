@@ -46,12 +46,12 @@ If you import the Git repository directly into Vercel, set the project Root Dire
 2. **Deploy Server**
    - Connect GitHub repo to Render
    - Create New → Web Service
-   - Set build command: `npm install && npm run build`
-   - Set start command: `npm run dev`
+   - Set root directory: `server`
+   - Set build command: `npm ci && npm run prisma:generate && npm run build`
+   - Set start command: `npm start`
    - Environment variables:
      ```
      NODE_ENV=production
-     PORT=10000
      DATABASE_URL=postgres://...
      JWT_SECRET=<generate strong random string>
      CORS_ORIGIN=https://yourdomain.vercel.app
@@ -96,7 +96,7 @@ prisma migrate deploy
 
 3. **Initialize Database**
    ```bash
-   docker exec buildtrack-server npm run seed
+   docker exec buildtrack-server npm run seed:prod
    ```
 
 ---
@@ -157,7 +157,6 @@ Application Load Balancer (ELB)
 ```env
 # Required
 NODE_ENV=production
-PORT=10000
 DATABASE_URL=postgres://user:pass@host:5432/buildtrack
 JWT_SECRET=<generate-strong-random-string>
 
@@ -199,7 +198,7 @@ NEXT_PUBLIC_API_URL=https://api.yourdomain.com
 3. **Run migrations**
    ```bash
    npx prisma migrate deploy
-   npx prisma db seed
+   npm run seed:prod
    ```
 
 4. **Verify data**
