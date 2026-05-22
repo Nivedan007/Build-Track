@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
-import { api, configuredApiUrl, hasConfiguredApiUrl } from "@/lib/api";
+import { api, configuredApiUrl, hasConfiguredApiUrl, isDemoMode } from "@/lib/api";
 
 interface LoginError {
   message: string;
@@ -19,6 +19,24 @@ export const useLogin = () => {
     setLoading(true);
 
     try {
+      if (isDemoMode) {
+        const response = await api.post("/auth/login", {
+          email: email.trim(),
+          password
+        });
+
+        const token = response.data.token;
+        const role = response.data.user?.role ?? "ADMIN";
+        setAuth(token, role);
+        setLoading(false);
+
+        setTimeout(() => {
+          router.push("/dashboard");
+        }, 300);
+
+        return true;
+      }
+
       // Validation
       if (!email?.trim()) {
         setError({ message: "Email is required", field: "email" });
@@ -68,18 +86,6 @@ export const useLogin = () => {
       return true;
     } catch (err: any) {
       setLoading(false);
-
-      const runningInProduction = process.env.NODE_ENV === "production";
-      const apiLooksLocal = /localhost|127\.0\.0\.1/i.test(configuredApiUrl);
-
-      if (runningInProduction && (!hasConfiguredApiUrl || apiLooksLocal)) {
-        setError({
-          message:
-            "Production API is not configured. Set NEXT_PUBLIC_API_URL to your deployed backend URL, redeploy Vercel, and make sure the server is running with DATABASE_URL and JWT_SECRET.",
-          field: "general"
-        });
-        return false;
-      }
 
       if (err.response?.status === 401) {
         setError({ message: "Invalid email or password", field: "general" });

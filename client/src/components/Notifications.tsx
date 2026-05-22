@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { io, Socket } from "socket.io-client";
 import { motion, AnimatePresence } from "framer-motion";
+import { isDemoMode } from "@/lib/api";
 
 type Notice = { id: string; text: string; type: "success" | "info" | "warning" | "error" };
 
@@ -11,6 +12,10 @@ export default function Notifications() {
   const [notices, setNotices] = useState<Notice[]>([]);
 
   useEffect(() => {
+    if (isDemoMode) {
+      return;
+    }
+
     const s = io(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5001", {
       reconnection: true,
       reconnectionDelay: 1000,
