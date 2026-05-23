@@ -19,7 +19,7 @@ export default function TasksPage() {
     setLoading(true);
     api
       .get("/tasks")
-      .then((res) => {
+      .then((res: any) => {
         if (mounted) setTasks(res.data.tasks || []);
       })
       .catch(() => {

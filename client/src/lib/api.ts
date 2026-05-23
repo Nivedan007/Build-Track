@@ -1,9 +1,11 @@
 import axios from "axios";
 import { useAuthStore } from "@/lib/store";
 import { demoProjects, demoTasks } from "@/lib/mock";
+import { DesignRecord } from "@/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim().replace(/\/$/, "") ?? "";
 const DEMO_TOKEN = process.env.NEXT_PUBLIC_DEMO_TOKEN?.trim() || "demo-admin-token";
+const DESIGN_STORAGE_KEY = "buildtrack:designs";
 
 type ApiResponse<T> = Promise<{ data: T }>;
 
@@ -90,8 +92,57 @@ const buildUploadUrl = (formData: FormData) => {
   return `demo://uploads/${encodeURIComponent(fileName)}`;
 };
 
+const buildSampleDesign = (): DesignRecord => ({
+  id: "sample-floor-plan",
+  name: "Sample Floor Plan",
+  createdAt: "2026-05-23T00:00:00.000Z",
+  updatedAt: "2026-05-23T00:00:00.000Z",
+  data: {
+    walls: [
+      { id: "w1", x: 0, z: 0, width: 8, depth: 0.2, height: 3, rotationY: 0, color: "#8aa4ff" },
+      { id: "w2", x: 4, z: 4, width: 8, depth: 0.2, height: 3, rotationY: Math.PI / 2, color: "#8aa4ff" },
+      { id: "w3", x: 0, z: 8, width: 8, depth: 0.2, height: 3, rotationY: 0, color: "#8aa4ff" },
+      { id: "w4", x: -4, z: 4, width: 8, depth: 0.2, height: 3, rotationY: Math.PI / 2, color: "#8aa4ff" }
+    ]
+  }
+});
+
+const readDesignStore = (): DesignRecord[] => {
+  if (typeof window === "undefined") {
+    return [buildSampleDesign()];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(DESIGN_STORAGE_KEY);
+    if (!raw) {
+      const seeded = [buildSampleDesign()];
+      window.localStorage.setItem(DESIGN_STORAGE_KEY, JSON.stringify(seeded));
+      return seeded;
+    }
+
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed as DesignRecord[];
+    }
+  } catch (err) {
+    console.error(err);
+  }
+
+  const seeded = [buildSampleDesign()];
+  window.localStorage.setItem(DESIGN_STORAGE_KEY, JSON.stringify(seeded));
+  return seeded;
+};
+
+const writeDesignStore = (designs: DesignRecord[]) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.setItem(DESIGN_STORAGE_KEY, JSON.stringify(designs));
+};
+
 const axiosApi = axios.create({
-  baseURL: "/api"
+  baseURL: API_URL ? `${API_URL}/api` : "/api"
 });
 
 axiosApi.interceptors.request.use((config) => {
@@ -106,16 +157,28 @@ export const hasConfiguredApiUrl = Boolean(API_URL);
 export const configuredApiUrl = API_URL || "http://localhost:5001";
 export const isDemoMode = !hasConfiguredApiUrl;
 
-const mockApi = {
+const mockApi: any = {
   get: async (path: string): ApiResponse<any> => {
     await delay(120);
 
     switch (path) {
       case "/projects":
         return { data: { projects: demoProjects } };
+      case "/designs":
+        return { data: readDesignStore() };
+      default: {
+        if (path.startsWith("/designs/")) {
+          const id = path.split("/").filter(Boolean).pop() || "";
+          const design = readDesignStore().find((entry) => entry.id === id);
+          if (design) {
+            return { data: design };
+          }
 
-      default:
+          throw createAxiosError(404, "Design not found");
+        }
+
         throw createAxiosError(404, `Demo mode does not implement ${path}`);
+      }
     }
   },
   post: async (path: string, payload?: any, config?: any): ApiResponse<any> => {
@@ -164,10 +227,41 @@ const mockApi = {
 
         return { data: { url: "demo://uploads/proof-upload" } };
       }
+      case "/designs": {
+        const designs = readDesignStore();
+        const body = payload || {};
+        const now = new Date().toISOString();
+        const created: DesignRecord = {
+          id: `design-${Date.now().toString(36)}`,
+          name: typeof body.name === "string" && body.name.trim() ? body.name.trim() : "Untitled Design",
+          createdAt: now,
+          updatedAt: now,
+          data: body.data && Array.isArray(body.data.walls) ? { walls: body.data.walls } : { walls: [] }
+        };
+
+        const nextDesigns = [created, ...designs.filter((entry) => entry.id !== buildSampleDesign().id)];
+        writeDesignStore(nextDesigns);
+        return { data: created };
+      }
 
       default:
         throw createAxiosError(404, `Demo mode does not implement ${path}`);
     }
+  },
+  delete: async (path: string): ApiResponse<any> => {
+    await delay(120);
+
+    if (!path.startsWith("/designs/")) {
+      throw createAxiosError(404, `Demo mode does not implement ${path}`);
+    }
+
+    const id = path.split("/").filter(Boolean).pop() || "";
+    const current = readDesignStore();
+    const remaining = current.filter((entry) => entry.id !== id);
+    const nextDesigns = remaining.length > 0 ? remaining : [buildSampleDesign()];
+    writeDesignStore(nextDesigns);
+
+    return { data: null };
   }
 };
 

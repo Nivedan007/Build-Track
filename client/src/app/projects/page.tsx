@@ -18,7 +18,7 @@ export default function ProjectsPage() {
     setLoading(true);
     api
       .get("/projects")
-      .then((res) => {
+      .then((res: any) => {
         if (mounted) setProjects(res.data.projects || []);
       })
       .catch(() => {

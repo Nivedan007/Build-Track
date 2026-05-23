@@ -39,7 +39,7 @@ export default function ReportsPage() {
     let mounted = true;
     api
       .get("/reports/summary")
-      .then((res) => {
+      .then((res: any) => {
         if (!mounted) return;
         setRows(res.data.reports || []);
         setMetrics({

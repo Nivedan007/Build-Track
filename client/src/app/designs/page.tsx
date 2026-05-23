@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { api } from "@/lib/api";
 
 type Design = { id: string; name: string; createdAt: string };
 
@@ -10,13 +11,15 @@ export default function DesignsPage() {
   async function fetchList() {
     setLoading(true);
     try {
-      const res = await fetch("/api/designs");
-      if (!res.ok) throw new Error("Failed to fetch");
-      const json = await res.json();
-      setDesigns(json || []);
+      const response = await api.get("/designs");
+      setDesigns((response.data || []).map((design: any) => ({
+        id: design.id,
+        name: design.name,
+        createdAt: design.createdAt
+      })));
     } catch (err) {
       console.error(err);
-      alert("Failed to load designs");
+      setDesigns([]);
     } finally {
       setLoading(false);
     }
@@ -32,8 +35,7 @@ export default function DesignsPage() {
   async function handleDelete(id: string) {
     if (!window.confirm("Delete this design?")) return;
     try {
-      const res = await fetch(`/api/designs/${id}`, { method: "DELETE" });
-      if (!res.ok) throw new Error("Delete failed");
+      await api.delete(`/designs/${id}`);
       setDesigns((d) => d.filter((x) => x.id !== id));
     } catch (err) {
       console.error(err);

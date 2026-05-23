@@ -4,6 +4,7 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Grid, Html } from "@react-three/drei";
 import Wall from "./Wall";
 import * as THREE from "three";
+import { api } from "@/lib/api";
 
 type WallDef = {
   id: string;
@@ -85,11 +86,9 @@ export default function PlanDesigner() {
       const id = params.get("load");
       if (id) {
         (async () => {
-          const res = await fetch(`/api/designs/${id}`);
-          if (!res.ok) return;
-          const json = await res.json();
-          if (json && json.data && Array.isArray(json.data.walls)) {
-            setWalls(json.data.walls);
+          const response = await api.get(`/designs/${id}`);
+          if (response && response.data && Array.isArray(response.data.data?.walls)) {
+            setWalls(response.data.data.walls);
             // remove param from URL
             params.delete("load");
             const url = `${window.location.pathname}?${params.toString()}`;
@@ -230,10 +229,8 @@ export default function PlanDesigner() {
     try {
       const name = window.prompt("Name for design:", "New Design") || "New Design";
       const payload = { name, data: { walls } };
-      const res = await fetch("/api/designs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      if (!res.ok) throw new Error("Failed to save");
-      const json = await res.json();
-      alert(`Saved to server (id: ${json.id})`);
+      const response = await api.post("/designs", payload);
+      alert(`Saved design: ${response.data.id}`);
     } catch (err) {
       console.error(err);
       alert("Failed to save to server");
@@ -244,14 +241,9 @@ export default function PlanDesigner() {
     try {
       const id = window.prompt("Enter design id to load:");
       if (!id) return;
-      const res = await fetch(`/api/designs/${id}`);
-      if (!res.ok) { alert("Design not found"); return; }
-      const json = await res.json();
-      if (json && json.data && Array.isArray(json.data.walls)) {
-        setWalls(json.data.walls);
-        alert("Design loaded from server");
-      } else if (json && json.data && json.data.walls) {
-        setWalls(json.data.walls || []);
+      const response = await api.get(`/designs/${id}`);
+      if (response && response.data && Array.isArray(response.data.data?.walls)) {
+        setWalls(response.data.data.walls);
         alert("Design loaded from server");
       } else {
         alert("Design data invalid");

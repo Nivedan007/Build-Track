@@ -43,7 +43,7 @@ export default function TeamPage() {
     let mounted = true;
     api
       .get("/team/overview")
-      .then((res) => {
+      .then((res: any) => {
         if (!mounted) return;
         setSquad(res.data.team || []);
         setMetrics({

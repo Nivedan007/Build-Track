@@ -1,5 +1,25 @@
 export type ProjectStatus = "PLANNING" | "IN_PROGRESS" | "COMPLETED" | "DELAYED";
 export type TaskStatus = "PENDING" | "IN_PROGRESS" | "COMPLETED" | "DELAYED";
+export type DesignWall = {
+  id: string;
+  x: number;
+  z: number;
+  width: number;
+  depth: number;
+  height: number;
+  rotationY: number;
+  color?: string;
+};
+
+export type DesignRecord = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  data: {
+    walls: DesignWall[];
+  };
+};
 
 export interface Project {
   id: string;
