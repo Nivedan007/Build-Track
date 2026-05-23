@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bot, MessageSquarePlus, Sparkles, Send, X } from "lucide-react";
-import { api } from "@/lib/api";
-import { useAuthStore } from "@/lib/store";
+import { api, getAssistantReply, isDemoMode } from "@/lib/api";
 
 interface ChatMessage {
   id: string;
@@ -21,7 +20,6 @@ const starterPrompts = [
 ];
 
 export function ChatAssistant() {
-  const token = useAuthStore((state) => state.token);
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -36,7 +34,7 @@ export function ChatAssistant() {
   ]);
   const listRef = useRef<HTMLDivElement | null>(null);
 
-  const canChat = Boolean(token);
+  const canChat = true;
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
@@ -59,8 +57,7 @@ export function ChatAssistant() {
     setLoading(true);
 
     try {
-      const response = await api.post("/assistant/chat", { message: text });
-      const data = response.data;
+      const data = isDemoMode ? getAssistantReply(text) : (await api.post("/assistant/chat", { message: text })).data;
       const assistantMessage: ChatMessage = {
         id: `${Date.now()}-assistant`,
         role: "assistant",
@@ -69,12 +66,14 @@ export function ChatAssistant() {
       };
       setMessages((current) => [...current, assistantMessage]);
     } catch (error: any) {
+      const fallback = getAssistantReply(text);
       setMessages((current) => [
         ...current,
         {
           id: `${Date.now()}-error`,
           role: "assistant",
-          content: error.response?.data?.message || "I couldn’t reach the assistant service right now. Please try again."
+          content: fallback.answer || error.response?.data?.message || "I couldn’t reach the assistant service right now. Please try again.",
+          hint: fallback.followUp
         }
       ]);
     } finally {
@@ -127,71 +126,63 @@ export function ChatAssistant() {
                 </button>
               </div>
 
-              {!canChat ? (
-                <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-slate-300">
-                  Please log in to use the assistant.
+              <div ref={listRef} className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
+                {messages.map((message) => (
+                  <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div
+                      className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-lg ${
+                        message.role === "user"
+                          ? "bg-sky-400 text-slate-950"
+                          : "border border-slate-700/60 bg-slate-900/65 text-slate-100"
+                      }`}
+                    >
+                      <p>{message.content}</p>
+                      {message.hint && <p className="mt-2 text-xs text-slate-300/80">{message.hint}</p>}
+                    </div>
+                  </div>
+                ))}
+                {loading && (
+                  <div className="flex justify-start">
+                    <div className="rounded-2xl border border-slate-700/60 bg-slate-900/65 px-4 py-3 text-sm text-slate-300">
+                      Thinking...
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-slate-700/60 px-5 py-4">
+                <div className="mb-3 flex flex-wrap gap-2">
+                  {quickPrompts.map((prompt) => (
+                    <button
+                      key={prompt}
+                      type="button"
+                      onClick={() => sendMessage(prompt)}
+                      className="rounded-full border border-slate-700/60 bg-slate-950/50 px-3 py-1.5 text-xs text-slate-200 transition hover:border-sky-300/50 hover:text-white"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
                 </div>
-              ) : (
-                <>
-                  <div ref={listRef} className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
-                    {messages.map((message) => (
-                      <div key={message.id} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
-                        <div
-                          className={`max-w-[82%] rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-lg ${
-                            message.role === "user"
-                              ? "bg-sky-400 text-slate-950"
-                              : "border border-slate-700/60 bg-slate-900/65 text-slate-100"
-                          }`}
-                        >
-                          <p>{message.content}</p>
-                          {message.hint && <p className="mt-2 text-xs text-slate-300/80">{message.hint}</p>}
-                        </div>
-                      </div>
-                    ))}
-                    {loading && (
-                      <div className="flex justify-start">
-                        <div className="rounded-2xl border border-slate-700/60 bg-slate-900/65 px-4 py-3 text-sm text-slate-300">
-                          Thinking...
-                        </div>
-                      </div>
-                    )}
-                  </div>
 
-                  <div className="border-t border-slate-700/60 px-5 py-4">
-                    <div className="mb-3 flex flex-wrap gap-2">
-                      {quickPrompts.map((prompt) => (
-                        <button
-                          key={prompt}
-                          type="button"
-                          onClick={() => sendMessage(prompt)}
-                          className="rounded-full border border-slate-700/60 bg-slate-950/50 px-3 py-1.5 text-xs text-slate-200 transition hover:border-sky-300/50 hover:text-white"
-                        >
-                          {prompt}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="flex items-end gap-3 rounded-2xl border border-slate-700/70 bg-slate-950/45 p-3">
-                      <MessageSquarePlus className="mb-1 h-4 w-4 text-sky-300" />
-                      <textarea
-                        value={input}
-                        onChange={(event) => setInput(event.target.value)}
-                        placeholder="Ask anything about projects, tasks, reports, team, or AI forecasts..."
-                        rows={2}
-                        className="min-h-[44px] flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => sendMessage()}
-                        disabled={loading || !input.trim()}
-                        className="grid h-10 w-10 place-items-center rounded-xl bg-sky-400 text-slate-950 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
-                      >
-                        <Send className="h-4 w-4" />
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
+                <div className="flex items-end gap-3 rounded-2xl border border-slate-700/70 bg-slate-950/45 p-3">
+                  <MessageSquarePlus className="mb-1 h-4 w-4 text-sky-300" />
+                  <textarea
+                    value={input}
+                    onChange={(event) => setInput(event.target.value)}
+                    placeholder="Ask anything about projects, tasks, reports, team, or AI forecasts..."
+                    rows={2}
+                    className="min-h-[44px] flex-1 resize-none bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => sendMessage()}
+                    disabled={loading || !input.trim()}
+                    className="grid h-10 w-10 place-items-center rounded-xl bg-sky-400 text-slate-950 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
             </motion.aside>
           </motion.div>
         )}

@@ -8,6 +8,8 @@ export const env = {
   jwtSecret: process.env.JWT_SECRET || "",
   aiServiceUrl: process.env.AI_SERVICE_URL || "http://localhost:8001",
   clientUrl: process.env.CLIENT_URL || "http://localhost:3000",
+  geminiApiKey: process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || "",
+  geminiModel: process.env.GEMINI_MODEL || "gemini-1.5-flash",
   // Upload config
   uploadMode: (process.env.UPLOAD_MODE || "local") as "local" | "s3",
   // S3 config

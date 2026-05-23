@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { prisma } from "../config/prisma";
-import { requireAuth, AuthRequest } from "../middleware/auth";
+import { AuthRequest } from "../middleware/auth";
+import { env } from "../config/env";
+import { verifyToken } from "../utils/jwt";
 
 const router = Router();
 
@@ -12,9 +14,124 @@ function formatCurrency(value: number) {
   return new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(value);
 }
 
-router.post("/chat", requireAuth, async (req: AuthRequest, res) => {
+function readOptionalUser(req: AuthRequest) {
+  const header = req.headers.authorization;
+  if (!header?.startsWith("Bearer ")) {
+    return undefined;
+  }
+
+  try {
+    return verifyToken(header.split(" ")[1]);
+  } catch {
+    return undefined;
+  }
+}
+
+function buildContextSummary(params: {
+  projects: Array<{ title: string; location: string; status: string; budget: number; progressPercentage: number }>;
+  tasks: Array<{ title: string; status: string; dueDate: Date; project: { title: string } }>;
+  users: Array<{ name: string | null; role: string }>;
+}) {
+  const delayedProjects = params.projects.filter((project) => project.status === "DELAYED");
+  const delayedTasks = params.tasks.filter((task) => task.status === "DELAYED");
+  const activeProjects = params.projects.filter((project) => project.status === "IN_PROGRESS");
+  const totalBudget = params.projects.reduce((sum, project) => sum + project.budget, 0);
+  const avgProgress = params.projects.length
+    ? Math.round(params.projects.reduce((sum, project) => sum + project.progressPercentage, 0) / params.projects.length)
+    : 0;
+  const engineers = params.users.filter((user) => user.role === "SITE_ENGINEER").length;
+  const workers = params.users.filter((user) => user.role === "WORKER").length;
+  const managers = params.users.filter((user) => user.role === "PROJECT_MANAGER").length;
+
+  return {
+    projectCount: params.projects.length,
+    activeProjects: activeProjects.length,
+    delayedProjects: delayedProjects.length,
+    delayedTasks: delayedTasks.length,
+    avgProgress,
+    totalBudget: formatCurrency(totalBudget),
+    workforce: {
+      managers,
+      engineers,
+      workers
+    },
+    highlights: {
+      delayedProjects: delayedProjects.slice(0, 3).map((project) => `${project.title} (${project.location})`),
+      delayedTasks: delayedTasks.slice(0, 3).map((task) => `${task.title} in ${task.project.title}`)
+    }
+  };
+}
+
+async function askGemini(message: string, context: ReturnType<typeof buildContextSummary>, role: string) {
+  if (!env.geminiApiKey) {
+    return null;
+  }
+
+  const prompt = [
+    "You are BuildTrack Assistant, an expert construction management copilot.",
+    "Answer the user's question directly and concisely.",
+    "Use the provided context when relevant.",
+    "If the user asks for a summary, give a practical answer with specific numbers.",
+    "If the context is not enough, say what is missing and suggest the next step.",
+    "Return JSON only with keys: answer and followUp.",
+    "Do not mention that you are an AI model unless asked.",
+    `User role: ${role}`,
+    `Context: ${JSON.stringify(context)}`,
+    `Question: ${message}`
+  ].join("\n");
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${env.geminiModel}:generateContent?key=${encodeURIComponent(env.geminiApiKey)}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }]
+          }
+        ],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 512
+        }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Gemini request failed with status ${response.status}`);
+  }
+
+  const payload: any = await response.json();
+  const text = payload?.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text || "").join("").trim();
+
+  if (!text) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(text);
+    if (typeof parsed?.answer === "string") {
+      return {
+        answer: parsed.answer,
+        followUp: typeof parsed.followUp === "string" ? parsed.followUp : ""
+      };
+    }
+  } catch {
+    // fall back to plain text
+  }
+
+  return { answer: text, followUp: "" };
+}
+
+router.post("/chat", async (req: AuthRequest, res) => {
   const message = String(req.body?.message || "").trim();
-  const role = req.user?.role || "";
+  const user = req.user ?? readOptionalUser(req);
+  const role = user?.role || "GUEST";
 
   if (!message) {
     return res.status(400).json({ message: "Message is required" });
@@ -39,6 +156,38 @@ router.post("/chat", requireAuth, async (req: AuthRequest, res) => {
   const avgProgress = projects.length
     ? Math.round(projects.reduce((sum, project) => sum + project.progressPercentage, 0) / projects.length)
     : 0;
+  const contextSummary = buildContextSummary({
+    projects: projects.map((project) => ({
+      title: project.title,
+      location: project.location,
+      status: project.status,
+      budget: project.budget,
+      progressPercentage: project.progressPercentage
+    })),
+    tasks: tasks.map((task) => ({
+      title: task.title,
+      status: task.status,
+      dueDate: task.dueDate,
+      project: { title: task.project.title }
+    })),
+    users
+  });
+
+  try {
+    const geminiReply = await askGemini(message, contextSummary, role);
+    if (geminiReply) {
+      return res.json({
+        answer: geminiReply.answer,
+        followUp: geminiReply.followUp,
+        context: {
+          ...contextSummary,
+          role
+        }
+      });
+    }
+  } catch (error) {
+    console.error("Gemini assistant fallback:", error);
+  }
 
   const input = normalize(message);
   let answer = "";
@@ -92,11 +241,7 @@ router.post("/chat", requireAuth, async (req: AuthRequest, res) => {
     answer,
     followUp,
     context: {
-      projectCount: projects.length,
-      delayedProjects: delayedProjects.length,
-      delayedTasks: delayedTasks.length,
-      avgProgress,
-      totalBudget: formatCurrency(totalBudget),
+      ...contextSummary,
       role
     }
   });

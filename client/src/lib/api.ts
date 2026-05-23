@@ -49,7 +49,7 @@ const buildForecast = (payload: ForecastPayload) => {
   return { delayProbability, estimatedCompletionDate, riskBand } as const;
 };
 
-const buildAssistantAnswer = (message: string) => {
+export const getAssistantReply = (message: string) => {
   const text = message.toLowerCase();
 
   if (text.includes("delayed")) {
@@ -214,7 +214,7 @@ const mockApi: any = {
 
       case "/assistant/chat": {
         const message = typeof payload?.message === "string" ? payload.message : "";
-        return { data: buildAssistantAnswer(message) };
+        return { data: getAssistantReply(message) };
       }
 
       case "/uploads/task-proof": {
