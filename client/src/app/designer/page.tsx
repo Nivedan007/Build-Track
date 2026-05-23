@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import PlanDesigner from "../../../components/PlanDesigner/PlanDesigner";
+import PlanDesigner from "../../components/PlanDesigner/PlanDesigner";
 
 export default function Page() {
   return (

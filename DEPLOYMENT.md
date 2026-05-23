@@ -36,7 +36,7 @@ NEXT_PUBLIC_API_URL=https://your-api.render.com
 NEXT_PUBLIC_DEMO_TOKEN=<leave empty for production>
 ```
 
-If you import the Git repository directly into Vercel, set the project Root Directory to `client`. This repo-level `vercel.json` intentionally stays minimal so Vercel project settings are respected.
+If you import the Git repository directly into Vercel, the project should build the Next.js app from `client`. The repo-level `vercel.json` is configured to point Vercel at `client/package.json`, so the app works even when the repository root is imported.
 
 #### Render (Backend)
 1. **Create PostgreSQL Database**

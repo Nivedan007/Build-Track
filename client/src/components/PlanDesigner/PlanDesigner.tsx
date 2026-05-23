@@ -122,7 +122,7 @@ export default function PlanDesigner() {
   }
 
   async function exportGLTF() {
-    const { GLTFExporter } = await import("three/examples/jsm/exporters/GLTFExporter");
+    const { GLTFExporter } = await import("three/examples/jsm/exporters/GLTFExporter.js");
     const exporter = new GLTFExporter();
     const group = new THREE.Group();
     walls.forEach((w) => {
@@ -134,28 +134,20 @@ export default function PlanDesigner() {
       group.add(m);
     });
 
-    exporter.parse(
-      group,
-      (result: any) => {
-        let output: Blob;
-        if (result instanceof ArrayBuffer) {
-          output = new Blob([result], { type: "application/octet-stream" });
-        } else {
-          output = new Blob([JSON.stringify(result)], { type: "model/gltf+json" });
-        }
-        const url = URL.createObjectURL(output);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "plan.glb";
-        a.click();
-        URL.revokeObjectURL(url);
-      },
-      { binary: true }
-    );
+    const result = await exporter.parseAsync(group, { binary: true });
+    const output = result instanceof ArrayBuffer
+      ? new Blob([result], { type: "application/octet-stream" })
+      : new Blob([JSON.stringify(result)], { type: "model/gltf+json" });
+    const url = URL.createObjectURL(output);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "plan.glb";
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   async function exportOBJ() {
-    const { OBJExporter } = await import("three/examples/jsm/exporters/OBJExporter");
+    const { OBJExporter } = await import("three/examples/jsm/exporters/OBJExporter.js");
     const exporter = new OBJExporter();
     const group = new THREE.Group();
     walls.forEach((w) => {
@@ -188,13 +180,13 @@ export default function PlanDesigner() {
     const name = f.name.toLowerCase();
     if (name.endsWith(".obj")) {
       const text = await f.text();
-      const { OBJLoader } = await import("three/examples/jsm/loaders/OBJLoader");
+      const { OBJLoader } = await import("three/examples/jsm/loaders/OBJLoader.js");
       const loader = new OBJLoader();
       const obj = loader.parse(text);
       setImportedObjects((arr) => [...arr, obj]);
     } else if (name.endsWith(".gltf") || name.endsWith(".glb")) {
       const arrayBuffer = await f.arrayBuffer();
-      const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader");
+      const { GLTFLoader } = await import("three/examples/jsm/loaders/GLTFLoader.js");
       const loader = new GLTFLoader();
       loader.parse(arrayBuffer as ArrayBuffer, "", (gltf) => {
         setImportedObjects((arr) => [...arr, gltf.scene]);
