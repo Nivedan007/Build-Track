@@ -1,17 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { TopBar } from "@/components/layout/TopBar";
 import { useLogin } from "@/hooks/useLogin";
 import { Check, AlertCircle, Loader, ShieldCheck, Sparkles, TrendingUp, Users, LockKeyhole, Workflow, ArrowRight, Globe2 } from "lucide-react";
+import { useAuthStore } from "@/lib/store";
 
 export default function LoginPage() {
+  const router = useRouter();
+  const token = useAuthStore((state) => state.token);
   const [email, setEmail] = useState("admin@buildtrack.ai");
   const [password, setPassword] = useState("BuildTrack@123");
   const [success, setSuccess] = useState(false);
   const { login, loading, error, clearError } = useLogin();
+
+  useEffect(() => {
+    if (token) {
+      router.replace("/dashboard");
+    }
+  }, [router, token]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
