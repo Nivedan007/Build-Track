@@ -86,6 +86,90 @@ export const getAssistantReply = (message: string) => {
   };
 };
 
+const buildDemoTeamOverview = () => {
+  const team = [
+    {
+      id: "tm-1",
+      name: "Arun Kumar",
+      role: "PROJECT_MANAGER",
+      location: "Chennai",
+      utilization: 84,
+      status: "Active"
+    },
+    {
+      id: "tm-2",
+      name: "Mira Iyer",
+      role: "SITE_ENGINEER",
+      location: "Bengaluru",
+      utilization: 76,
+      status: "Active"
+    },
+    {
+      id: "tm-3",
+      name: "Suresh Patel",
+      role: "SITE_ENGINEER",
+      location: "Coimbatore",
+      utilization: 69,
+      status: "Active"
+    },
+    {
+      id: "tm-4",
+      name: "Deepa Rani",
+      role: "WORKER",
+      location: "Chennai",
+      utilization: 58,
+      status: "Available"
+    }
+  ];
+
+  const avgUtilization = team.length
+    ? Number((team.reduce((sum, member) => sum + member.utilization, 0) / team.length).toFixed(1))
+    : 0;
+
+  return {
+    metrics: {
+      activeWorkforce: team.length,
+      safetyCertifiedRate: 96,
+      openPositions: 2,
+      avgUtilization
+    },
+    team
+  };
+};
+
+const buildDemoReportsSummary = () => {
+  const projectCount = demoProjects.length;
+  const delayedProjects = demoProjects.filter((project) => project.status === "DELAYED").length;
+  const completedProjects = demoProjects.filter((project) => project.status === "COMPLETED").length;
+  const inProgressProjects = demoProjects.filter((project) => project.status === "IN_PROGRESS").length;
+  const totalBudget = demoProjects.reduce((sum, project) => sum + project.budget, 0);
+  const avgProgress = projectCount > 0
+    ? Number((demoProjects.reduce((sum, project) => sum + project.progressPercentage, 0) / projectCount).toFixed(1))
+    : 0;
+
+  return {
+    metrics: {
+      projectCount,
+      inProgressProjects,
+      delayedProjects,
+      completedProjects,
+      totalBudget,
+      avgProgress,
+      taskCount: demoTasks.length,
+      delayedTasks: demoTasks.filter((task) => task.status === "DELAYED").length,
+      dueSoonTasks: demoTasks.length,
+      forecastAccuracy: 88.6,
+      reportCoverage: 94
+    },
+    reports: [
+      { name: "Portfolio Health", owner: "Program Office", updated: new Date().toISOString(), status: "Ready" },
+      { name: "Cost Variance Deep Dive", owner: "Finance Controls", updated: new Date().toISOString(), status: "In Review" },
+      { name: "Safety Compliance Index", owner: "HSE", updated: new Date().toISOString(), status: "Ready" },
+      { name: "Delay Risk Heatmap", owner: "AI Ops", updated: new Date().toISOString(), status: "Ready" }
+    ]
+  };
+};
+
 const buildUploadUrl = (formData: FormData) => {
   const proof = formData.get("proof");
   const fileName = proof instanceof File ? proof.name : "proof-upload";
@@ -164,6 +248,10 @@ const mockApi: any = {
     switch (path) {
       case "/projects":
         return { data: { projects: demoProjects } };
+      case "/team/overview":
+        return { data: buildDemoTeamOverview() };
+      case "/reports/summary":
+        return { data: buildDemoReportsSummary() };
       case "/designs":
         return { data: readDesignStore() };
       default: {
