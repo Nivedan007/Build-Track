@@ -11,6 +11,21 @@ export type DesignWall = {
   color?: string;
 };
 
+export type DesignOpening = {
+  id: string;
+  wallId: string;
+  kind: "door" | "window";
+  offset: number;
+  width: number;
+  height: number;
+  sillHeight: number;
+};
+
+export type DesignCameraState = {
+  mode: "perspective" | "orthographic";
+  preset: "free" | "iso" | "top" | "front" | "right" | "left";
+};
+
 export type DesignRecord = {
   id: string;
   name: string;
@@ -18,6 +33,8 @@ export type DesignRecord = {
   updatedAt: string;
   data: {
     walls: DesignWall[];
+    openings?: DesignOpening[];
+    camera?: DesignCameraState;
   };
 };
 

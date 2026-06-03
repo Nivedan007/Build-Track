@@ -187,7 +187,12 @@ const buildSampleDesign = (): DesignRecord => ({
       { id: "w2", x: 4, z: 4, width: 8, depth: 0.2, height: 3, rotationY: Math.PI / 2, color: "#8aa4ff" },
       { id: "w3", x: 0, z: 8, width: 8, depth: 0.2, height: 3, rotationY: 0, color: "#8aa4ff" },
       { id: "w4", x: -4, z: 4, width: 8, depth: 0.2, height: 3, rotationY: Math.PI / 2, color: "#8aa4ff" }
-    ]
+    ],
+    openings: [
+      { id: "o1", wallId: "w1", kind: "door", offset: 0, width: 0.9, height: 2.1, sillHeight: 0 },
+      { id: "o2", wallId: "w2", kind: "window", offset: -1.5, width: 1.2, height: 1.2, sillHeight: 1 }
+    ],
+    camera: { mode: "orthographic", preset: "iso" }
   }
 });
 
@@ -319,12 +324,17 @@ const mockApi: any = {
         const designs = readDesignStore();
         const body = payload || {};
         const now = new Date().toISOString();
+        const designData = {
+          walls: Array.isArray(body.data?.walls) ? body.data.walls : [],
+          openings: Array.isArray(body.data?.openings) ? body.data.openings : [],
+          camera: body.data?.camera && typeof body.data.camera === "object" ? body.data.camera : { mode: "orthographic", preset: "iso" }
+        };
         const created: DesignRecord = {
           id: `design-${Date.now().toString(36)}`,
           name: typeof body.name === "string" && body.name.trim() ? body.name.trim() : "Untitled Design",
           createdAt: now,
           updatedAt: now,
-          data: body.data && Array.isArray(body.data.walls) ? { walls: body.data.walls } : { walls: [] }
+          data: designData
         };
 
         const nextDesigns = [created, ...designs.filter((entry) => entry.id !== buildSampleDesign().id)];
