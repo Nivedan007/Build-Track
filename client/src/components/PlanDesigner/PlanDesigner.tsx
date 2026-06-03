@@ -31,6 +31,12 @@ type OpeningDef = {
 
 type CameraMode = "perspective" | "orthographic";
 type ViewPreset = "free" | "iso" | "top" | "front" | "right" | "left";
+type CameraPresetState = {
+  position: [number, number, number];
+  target: [number, number, number];
+  up?: [number, number, number];
+  zoom?: number;
+};
 
 function snap(v: number, grid: number) {
   return Math.round(v / grid) * grid;
@@ -77,8 +83,14 @@ function getPointFromWallOffset(wall: WallDef, offset: number) {
   return center.addScaledVector(direction, offset);
 }
 
-function getNearestWallEndpoint(point: THREE.Vector3, walls: WallDef[], ignoreWallId?: string, threshold = 0.6) {
-  let best: { point: THREE.Vector3; distance: number; wallId: string } | null = null;
+type NearestWallEndpoint = {
+  point: THREE.Vector3;
+  distance: number;
+  wallId: string;
+};
+
+function getNearestWallEndpoint(point: THREE.Vector3, walls: WallDef[], ignoreWallId?: string, threshold = 0.6): NearestWallEndpoint | null {
+  let best: NearestWallEndpoint | null = null;
 
   walls.forEach((wall) => {
     if (ignoreWallId && wall.id === ignoreWallId) return;
@@ -99,7 +111,7 @@ function snapPointToEndpoint(point: THREE.Vector3, walls: WallDef[], ignoreWallI
   return nearest ? nearest.point : point;
 }
 
-function viewPresetToCamera(preset: ViewPreset, cameraMode: CameraMode) {
+function viewPresetToCamera(preset: ViewPreset, cameraMode: CameraMode): CameraPresetState {
   const orthographic = cameraMode === "orthographic";
 
   switch (preset) {
@@ -336,11 +348,12 @@ export default function PlanDesigner() {
       activeCamera.position.set(view.position[0], view.position[1], view.position[2]);
     }
 
-    if (cameraMode === "orthographic" && "zoom" in view) {
+    if (cameraMode === "orthographic" && typeof view.zoom === "number") {
       activeCamera.zoom = view.zoom;
-      if ("up" in view) {
-        activeCamera.up.set(view.up[0], view.up[1], view.up[2]);
-      }
+    }
+
+    if (cameraMode === "orthographic" && view.up) {
+      activeCamera.up.set(view.up[0], view.up[1], view.up[2]);
     }
 
     if ("target" in view) {
