@@ -109,6 +109,42 @@ def generate_cost_risk_dataset(n: int = 1200) -> pd.DataFrame:
     )
 
 
+def generate_safety_risk_dataset(n: int = 1200) -> pd.DataFrame:
+    rng = np.random.default_rng(210)
+    worker_count = rng.integers(10, 300, n)
+    overtime_hours_average = rng.uniform(0, 12, n)
+    safety_cert_rate = rng.uniform(0.4, 1.0, n)
+    weather_severity = rng.uniform(0.0, 1.0, n)
+    scaffolding_activity = rng.choice([0.0, 1.0], size=n, p=[0.6, 0.4])
+    heavy_machinery_count = rng.integers(0, 10, n)
+    last_safety_audit_days = rng.integers(0, 30, n)
+
+    safety_risk = (
+        0.20 * (worker_count / 300)
+        + 0.18 * (overtime_hours_average / 12)
+        + 0.22 * (1 - safety_cert_rate)
+        + 0.15 * weather_severity
+        + 0.12 * scaffolding_activity
+        + 0.08 * (heavy_machinery_count / 10)
+        + 0.05 * (last_safety_audit_days / 30)
+    )
+
+    safety_risk = np.clip(safety_risk + rng.normal(0, 0.03, n), 0, 1)
+
+    return pd.DataFrame(
+        {
+            "workerCount": worker_count,
+            "overtimeHoursAverage": overtime_hours_average,
+            "safetyCertRate": safety_cert_rate,
+            "weatherSeverity": weather_severity,
+            "scaffoldingActivity": scaffolding_activity,
+            "heavyMachineryCount": heavy_machinery_count,
+            "lastSafetyAuditDays": last_safety_audit_days,
+            "safetyIncidentProbability": safety_risk,
+        }
+    )
+
+
 def main() -> None:
     base_dir = Path(__file__).resolve().parent
     model_dir = base_dir / "model"
@@ -179,9 +215,32 @@ def main() -> None:
 
     joblib.dump(cost_model, model_dir / "cost_risk_model.pkl")
 
+    safety_data = generate_safety_risk_dataset()
+    safety_data.to_csv(dataset_dir / "construction_safety.csv", index=False)
+
+    safety_features = [
+        "workerCount",
+        "overtimeHoursAverage",
+        "safetyCertRate",
+        "weatherSeverity",
+        "scaffoldingActivity",
+        "heavyMachineryCount",
+        "lastSafetyAuditDays",
+    ]
+
+    X_safety = safety_data[safety_features]
+    y_safety = safety_data["safetyIncidentProbability"]
+    X_safety_train, _, y_safety_train, _ = train_test_split(X_safety, y_safety, test_size=0.2, random_state=210)
+
+    safety_model = RandomForestRegressor(n_estimators=250, random_state=210)
+    safety_model.fit(X_safety_train, y_safety_train)
+
+    joblib.dump(safety_model, model_dir / "safety_risk_model.pkl")
+
     print("Model training complete. Saved to ai-service/model/delay_model.pkl")
     print("Efficiency optimizer complete. Saved to ai-service/model/efficiency_model.pkl")
     print("Cost risk model complete. Saved to ai-service/model/cost_risk_model.pkl")
+    print("Safety incident risk model complete. Saved to ai-service/model/safety_risk_model.pkl")
 
 
 if __name__ == "__main__":

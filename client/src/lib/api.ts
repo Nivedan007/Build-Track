@@ -38,6 +38,16 @@ type CostRiskPayload = {
   materialShortages?: number;
 };
 
+type SafetyRiskPayload = {
+  workerCount?: number;
+  overtimeHoursAverage?: number;
+  safetyCertRate?: number;
+  weatherSeverity?: number;
+  scaffoldingActivity?: number;
+  heavyMachineryCount?: number;
+  lastSafetyAuditDays?: number;
+};
+
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const createAxiosError = (status: number, message: string) => ({
@@ -155,6 +165,60 @@ const buildCostRisk = (payload: CostRiskPayload) => {
     expectedOverrunPercent: expectedOverrunPct,
     riskBand,
     mitigationActions: actions.slice(0, 4)
+  };
+};
+
+const buildSafetyRisk = (payload: SafetyRiskPayload) => {
+  const workerCount = payload.workerCount ?? 150;
+  const overtimeHoursAverage = payload.overtimeHoursAverage ?? 3.5;
+  const safetyCertRate = payload.safetyCertRate ?? 0.85;
+  const weatherSeverity = payload.weatherSeverity ?? 0.25;
+  const scaffoldingActivity = payload.scaffoldingActivity ?? 0.0;
+  const heavyMachineryCount = payload.heavyMachineryCount ?? 2;
+  const lastSafetyAuditDays = payload.lastSafetyAuditDays ?? 5;
+
+  const safetyProb = clamp(
+    0.20 * (workerCount / 300) +
+      0.18 * (overtimeHoursAverage / 12) +
+      0.22 * (1 - safetyCertRate) +
+      0.15 * weatherSeverity +
+      0.12 * scaffoldingActivity +
+      0.08 * (heavyMachineryCount / 10) +
+      0.05 * (lastSafetyAuditDays / 30),
+    0.02,
+    0.98
+  );
+
+  const riskBand = safetyProb >= 0.45 ? "HIGH" : safetyProb >= 0.20 ? "MEDIUM" : "LOW";
+
+  const recommendations = [];
+  if (safetyCertRate < 0.8) {
+    recommendations.push("Mandate emergency safety refresher briefing for uncertified workers");
+  }
+  if (overtimeHoursAverage > 6.0) {
+    recommendations.push("Enforce shift duration caps and fatigue management rest breaks");
+  }
+  if (weatherSeverity > 0.6) {
+    recommendations.push("Suspend outdoor heavy lifts and high-altitude scaffolding activities");
+  }
+  if (scaffoldingActivity > 0.5 && safetyCertRate < 0.9) {
+    recommendations.push("Double-check all fall-arrest harnesses and scaffold certifications");
+  }
+  if (lastSafetyAuditDays > 14) {
+    recommendations.push("Conduct a site-wide safety walkabout immediately (audit overdue)");
+  }
+  if (heavyMachineryCount > 5) {
+    recommendations.push("Establish dedicated exclusion zones and spotters for heavy plant operations");
+  }
+
+  if (recommendations.length === 0) {
+    recommendations.push("Continue regular safety audits and standard tool-box talks");
+  }
+
+  return {
+    safetyIncidentProbability: safetyProb,
+    riskBand,
+    preventativeRecommendations: recommendations.slice(0, 4)
   };
 };
 
@@ -475,6 +539,10 @@ const mockApi: any = {
 
       case "/ai/predict-cost-overrun": {
         return { data: buildCostRisk(payload || {}) };
+      }
+
+      case "/ai/predict-safety-risk": {
+        return { data: buildSafetyRisk(payload || {}) };
       }
 
       case "/assistant/chat": {

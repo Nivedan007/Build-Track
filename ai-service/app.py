@@ -11,6 +11,7 @@ app = FastAPI(title="BuildTrack AI Service", version="1.0.0")
 MODEL_PATH = Path(__file__).resolve().parent / "model" / "delay_model.pkl"
 EFFICIENCY_MODEL_PATH = Path(__file__).resolve().parent / "model" / "efficiency_model.pkl"
 COST_MODEL_PATH = Path(__file__).resolve().parent / "model" / "cost_risk_model.pkl"
+SAFETY_MODEL_PATH = Path(__file__).resolve().parent / "model" / "safety_risk_model.pkl"
 
 model = None
 if MODEL_PATH.exists():
@@ -23,6 +24,10 @@ if EFFICIENCY_MODEL_PATH.exists():
 cost_model = None
 if COST_MODEL_PATH.exists():
     cost_model = joblib.load(COST_MODEL_PATH)
+
+safety_model = None
+if SAFETY_MODEL_PATH.exists():
+    safety_model = joblib.load(SAFETY_MODEL_PATH)
 
 
 class DelayInput(BaseModel):
@@ -53,6 +58,16 @@ class CostRiskInput(BaseModel):
     materialShortages: int = Field(..., ge=0)
 
 
+class SafetyRiskInput(BaseModel):
+    workerCount: int = Field(..., ge=1)
+    overtimeHoursAverage: float = Field(..., ge=0, le=24)
+    safetyCertRate: float = Field(..., ge=0, le=1)
+    weatherSeverity: float = Field(..., ge=0, le=1)
+    scaffoldingActivity: float = Field(..., ge=0, le=1)
+    heavyMachineryCount: int = Field(..., ge=0)
+    lastSafetyAuditDays: int = Field(..., ge=0)
+
+
 @app.get("/health")
 def health() -> dict:
     return {
@@ -60,6 +75,7 @@ def health() -> dict:
         "modelLoaded": model is not None,
         "efficiencyModelLoaded": efficiency_model is not None,
         "costModelLoaded": cost_model is not None,
+        "safetyModelLoaded": safety_model is not None,
         "service": "buildtrack-ai"
     }
 
@@ -220,5 +236,54 @@ def predict_cost_overrun(payload: CostRiskInput) -> dict:
         "expectedOverrunPercent": expected_overrun_pct,
         "riskBand": "HIGH" if cost_overrun_prob > 0.6 else "MEDIUM" if cost_overrun_prob > 0.3 else "LOW",
         "mitigationActions": actions[:4]
+    }
+
+
+@app.post("/predict-safety-risk")
+def predict_safety_risk(payload: SafetyRiskInput) -> dict:
+    if safety_model is None:
+        return {
+            "message": "Model not loaded. Run train.py first.",
+            "safetyIncidentProbability": 0.0,
+            "riskBand": "LOW",
+            "preventativeRecommendations": ["Run train.py to initialize AI compliance checks."]
+        }
+
+    values = np.array(
+        [[
+            payload.workerCount,
+            payload.overtimeHoursAverage,
+            payload.safetyCertRate,
+            payload.weatherSeverity,
+            payload.scaffoldingActivity,
+            payload.heavyMachineryCount,
+            payload.lastSafetyAuditDays,
+        ]]
+    )
+
+    raw_prediction = float(safety_model.predict(values)[0])
+    safety_prob = max(0.0, min(1.0, raw_prediction))
+
+    recommendations = []
+    if payload.safetyCertRate < 0.8:
+        recommendations.append("Mandate emergency safety refresher briefing for uncertified workers")
+    if payload.overtimeHoursAverage > 6.0:
+        recommendations.append("Enforce shift duration caps and fatigue management rest breaks")
+    if payload.weatherSeverity > 0.6:
+        recommendations.append("Suspend outdoor heavy lifts and high-altitude scaffolding activities")
+    if payload.scaffoldingActivity > 0.5 and payload.safetyCertRate < 0.9:
+        recommendations.append("Double-check all fall-arrest harnesses and scaffold certifications")
+    if payload.lastSafetyAuditDays > 14:
+        recommendations.append("Conduct a site-wide safety walkabout immediately (audit overdue)")
+    if payload.heavyMachineryCount > 5:
+        recommendations.append("Establish dedicated exclusion zones and spotters for heavy plant operations")
+
+    if not recommendations:
+        recommendations.append("Continue regular safety audits and standard tool-box talks")
+
+    return {
+        "safetyIncidentProbability": round(safety_prob, 4),
+        "riskBand": "HIGH" if safety_prob > 0.45 else "MEDIUM" if safety_prob > 0.20 else "LOW",
+        "preventativeRecommendations": recommendations[:4]
     }
 

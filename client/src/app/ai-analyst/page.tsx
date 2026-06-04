@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { AlertTriangle, ArrowRight, BadgeAlert, Brain, Calculator, LineChart, Sparkles, SlidersHorizontal, Target } from "lucide-react";
+import { AlertTriangle, ArrowRight, BadgeAlert, Brain, Calculator, LineChart, Sparkles, SlidersHorizontal, Target, ShieldAlert, Activity } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { api } from "@/lib/api";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
@@ -28,6 +28,12 @@ type CostRiskResult = {
   expectedOverrunPercent: number;
   riskBand: "LOW" | "MEDIUM" | "HIGH";
   mitigationActions: string[];
+};
+
+type SafetyRiskResult = {
+  safetyIncidentProbability: number;
+  riskBand: "LOW" | "MEDIUM" | "HIGH";
+  preventativeRecommendations: string[];
 };
 
 const defaultForm = {
@@ -58,6 +64,16 @@ const costDefaultForm = {
   materialShortages: 1
 };
 
+const safetyDefaultForm = {
+  workerCount: 120,
+  overtimeHoursAverage: 2.5,
+  safetyCertRate: 0.90,
+  weatherSeverity: 0.20,
+  scaffoldingActivity: 0,
+  heavyMachineryCount: 3,
+  lastSafetyAuditDays: 4
+};
+
 export default function AiAnalystPage() {
   const gate = useRoleGuard(["ADMIN", "PROJECT_MANAGER", "SITE_ENGINEER", "CLIENT", "WORKER"]);
   const [form, setForm] = useState(defaultForm);
@@ -72,6 +88,10 @@ export default function AiAnalystPage() {
   const [costLoading, setCostLoading] = useState(false);
   const [costError, setCostError] = useState("");
   const [costResult, setCostResult] = useState<CostRiskResult | null>(null);
+  const [safetyForm, setSafetyForm] = useState(safetyDefaultForm);
+  const [safetyLoading, setSafetyLoading] = useState(false);
+  const [safetyError, setSafetyError] = useState("");
+  const [safetyResult, setSafetyResult] = useState<SafetyRiskResult | null>(null);
 
   const summary = useMemo(() => {
     if (!result) return { title: "Run an assessment", description: "Tune the inputs and generate a delay forecast in seconds." };
@@ -129,6 +149,21 @@ export default function AiAnalystPage() {
       setCostError(err.response?.data?.message || "Unable to run budget risk prediction right now.");
     } finally {
       setCostLoading(false);
+    }
+  };
+
+  const handleSafetySubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSafetyLoading(true);
+    setSafetyError("");
+
+    try {
+      const response = await api.post("/ai/predict-safety-risk", safetyForm);
+      setSafetyResult(response.data);
+    } catch (err: any) {
+      setSafetyError(err.response?.data?.message || "Unable to run safety risk prediction right now.");
+    } finally {
+      setSafetyLoading(false);
     }
   };
 
@@ -634,6 +669,203 @@ export default function AiAnalystPage() {
               ) : (
                 <div className="mt-5 rounded-2xl border border-dashed border-slate-700/70 bg-slate-950/30 p-8 text-sm text-slate-400">
                   Your budget overrun assessment will appear here after the first calculation.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+          <motion.form
+            onSubmit={handleSafetySubmit}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="panel rounded-3xl p-6"
+          >
+            <div className="mb-5 flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-rose-300" />
+              <h3 className="text-lg font-semibold">Safety & Compliance Risk Predictor</h3>
+            </div>
+
+            <p className="mb-5 text-sm text-slate-300">
+              Assess site safety compliance and calculate potential incident probabilities based on personnel fatigue, safety certification levels, hazard activity, and weather factors.
+            </p>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Active Site Labor <span className="text-slate-400">{safetyForm.workerCount}</span>
+                </span>
+                <input
+                  type="range"
+                  min="10"
+                  max="300"
+                  step="5"
+                  value={safetyForm.workerCount}
+                  onChange={(e) => setSafetyForm((v) => ({ ...v, workerCount: Number(e.target.value) }))}
+                  className="w-full accent-sky-400"
+                />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Average Overtime Hours <span className="text-slate-400">{safetyForm.overtimeHoursAverage.toFixed(1)} hrs</span>
+                </span>
+                <input
+                  type="range"
+                  min="0"
+                  max="12"
+                  step="0.5"
+                  value={safetyForm.overtimeHoursAverage}
+                  onChange={(e) => setSafetyForm((v) => ({ ...v, overtimeHoursAverage: Number(e.target.value) }))}
+                  className="w-full accent-rose-300"
+                />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Safety Certification Rate <span className="text-slate-400">{Math.round(safetyForm.safetyCertRate * 100)}%</span>
+                </span>
+                <input
+                  type="range"
+                  min="0.4"
+                  max="1.0"
+                  step="0.01"
+                  value={safetyForm.safetyCertRate}
+                  onChange={(e) => setSafetyForm((v) => ({ ...v, safetyCertRate: Number(e.target.value) }))}
+                  className="w-full accent-emerald-300"
+                />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Weather Severity Index <span className="text-slate-400">{safetyForm.weatherSeverity.toFixed(2)}</span>
+                </span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={safetyForm.weatherSeverity}
+                  onChange={(e) => setSafetyForm((v) => ({ ...v, weatherSeverity: Number(e.target.value) }))}
+                  className="w-full accent-sky-400"
+                />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Active Heavy Machinery <span className="text-slate-400">{safetyForm.heavyMachineryCount} units</span>
+                </span>
+                <input
+                  type="range"
+                  min="0"
+                  max="10"
+                  step="1"
+                  value={safetyForm.heavyMachineryCount}
+                  onChange={(e) => setSafetyForm((v) => ({ ...v, heavyMachineryCount: Number(e.target.value) }))}
+                  className="w-full accent-amber-300"
+                />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Days Since Last Audit <span className="text-slate-400">{safetyForm.lastSafetyAuditDays} days</span>
+                </span>
+                <input
+                  type="range"
+                  min="0"
+                  max="30"
+                  step="1"
+                  value={safetyForm.lastSafetyAuditDays}
+                  onChange={(e) => setSafetyForm((v) => ({ ...v, lastSafetyAuditDays: Number(e.target.value) }))}
+                  className="w-full accent-sky-400"
+                />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300 md:col-span-2">
+                <span className="flex items-center justify-between">
+                  High-Altitude Scaffolding Active <span className="text-slate-400">{safetyForm.scaffoldingActivity === 1 ? "Yes" : "No"}</span>
+                </span>
+                <select
+                  value={safetyForm.scaffoldingActivity}
+                  onChange={(e) => setSafetyForm((v) => ({ ...v, scaffoldingActivity: Number(e.target.value) }))}
+                  className="w-full bg-slate-900 border border-slate-700/60 rounded-xl px-4 py-2.5 outline-none focus:border-sky-400 text-slate-100"
+                >
+                  <option value={0}>No (Standard Ground Work)</option>
+                  <option value={1}>Yes (Elevated / High-Altitude Work)</option>
+                </select>
+              </label>
+            </div>
+
+            {safetyError && <p className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{safetyError}</p>}
+
+            <button
+              type="submit"
+              disabled={safetyLoading}
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-rose-500 px-5 py-3 font-semibold text-slate-950 transition hover:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {safetyLoading ? "Analyzing Incident Risk..." : "Predict Safety Risk"}
+              <Activity className="h-4 w-4 animate-pulse" />
+            </button>
+          </motion.form>
+
+          <div className="space-y-4">
+            <div className="panel rounded-3xl p-6">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-rose-300" />
+                <h3 className="text-lg font-semibold">Incident Risk Assessment Output</h3>
+              </div>
+
+              {safetyResult ? (
+                <div className="mt-5 space-y-4">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-2xl border border-slate-700/60 bg-slate-950/35 p-4">
+                      <p className="text-xs uppercase tracking-wider text-slate-400">Incident Probability</p>
+                      <p className="mt-2 text-3xl font-semibold text-rose-200">{Math.round(safetyResult.safetyIncidentProbability * 100)}%</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-700/60 bg-slate-950/35 p-4">
+                      <p className="text-xs uppercase tracking-wider text-slate-400">Risk Band</p>
+                      <p className={`mt-2 text-3xl font-semibold ${safetyResult.riskBand === "HIGH" ? "text-rose-300" : safetyResult.riskBand === "MEDIUM" ? "text-amber-300" : "text-emerald-300"}`}>
+                        {safetyResult.riskBand}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-700/60 bg-slate-950/35 p-4">
+                      <p className="text-xs uppercase tracking-wider text-slate-400">Site Safety Rating</p>
+                      <p className={`mt-2 text-xl font-semibold ${safetyResult.riskBand === "HIGH" ? "text-rose-300" : safetyResult.riskBand === "MEDIUM" ? "text-amber-300" : "text-emerald-300"}`}>
+                        {safetyResult.riskBand === "HIGH" ? "Critical Audit" : safetyResult.riskBand === "MEDIUM" ? "Warning" : "Excellent"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-700/60 bg-slate-950/35 p-5">
+                    <p className="text-sm uppercase tracking-wider text-slate-400">Preventative Recommendations</p>
+                    <ul className="mt-3 space-y-2 text-sm text-slate-200">
+                      {safetyResult.preventativeRecommendations.map((action) => (
+                        <li key={action} className="flex items-start gap-2">
+                          <span className="mt-2 h-2 w-2 rounded-full bg-rose-400 animate-pulse" />
+                          <span>{action}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className={`rounded-2xl border p-5 text-sm ${safetyResult.riskBand === "HIGH" ? "border-rose-300/20 bg-rose-400/10 text-rose-100" : safetyResult.riskBand === "MEDIUM" ? "border-amber-300/20 bg-amber-400/10 text-amber-100" : "border-emerald-300/20 bg-emerald-400/10 text-emerald-100"}`}>
+                    <div className="flex items-center gap-2 font-semibold">
+                      <AlertTriangle className="h-4 w-4" />
+                      Compliance Audit Summary
+                    </div>
+                    <p className="mt-2 text-slate-200">
+                      {safetyResult.riskBand === "HIGH" 
+                        ? "High probability of safety violation or incident. Worker fatigue or heavy machinery density combined with low certification rates is creating critical hazard points. Run audits immediately."
+                        : safetyResult.riskBand === "MEDIUM"
+                        ? "Moderate risk. General safety walkabout and toolbox talks refreshers are recommended to retain strict safety compliance."
+                        : "Excellent site compliance. General protocol is sufficient to keep work progressing safely."}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-5 rounded-2xl border border-dashed border-slate-700/70 bg-slate-950/30 p-8 text-sm text-slate-400">
+                  Your safety incident and compliance forecast will appear here after analysis.
                 </div>
               )}
             </div>
