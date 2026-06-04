@@ -8,7 +8,7 @@ interface JwtPayload {
 }
 
 export const signToken = (payload: JwtPayload) => {
-  return jwt.sign(payload, env.jwtSecret, { expiresIn: "24h" });
+  return jwt.sign(payload, env.jwtSecret, { expiresIn: "30d" });
 };
 
 export const verifyToken = (token: string) => {

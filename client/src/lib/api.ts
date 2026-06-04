@@ -351,6 +351,19 @@ axiosApi.interceptors.request.use((config) => {
   return config;
 });
 
+axiosApi.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      useAuthStore.getState().logout();
+      if (typeof window !== "undefined") {
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const hasConfiguredApiUrl = Boolean(API_URL);
 export const configuredApiUrl = API_URL || "http://localhost:5001";
 export const isDemoMode = !hasConfiguredApiUrl;
