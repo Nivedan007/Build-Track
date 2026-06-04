@@ -246,6 +246,48 @@ export const hasConfiguredApiUrl = Boolean(API_URL);
 export const configuredApiUrl = API_URL || "http://localhost:5001";
 export const isDemoMode = !hasConfiguredApiUrl;
 
+const shouldFallbackToDemo = (error: any) => {
+  if (!hasConfiguredApiUrl) {
+    return false;
+  }
+
+  if (!error?.response) {
+    return true;
+  }
+
+  const status = Number(error.response.status);
+  return status === 404 || status >= 500;
+};
+
+const requestWithFallback = async <T = any>(
+  method: "get" | "post" | "delete",
+  path: string,
+  payload?: any,
+  config?: any
+) => {
+  if (!hasConfiguredApiUrl) {
+    return (mockApi[method] as any)(path, payload, config) as ApiResponse<T>;
+  }
+
+  try {
+    if (method === "get") {
+      return await axiosApi.get<T>(path, config);
+    }
+
+    if (method === "delete") {
+      return await axiosApi.delete<T>(path, config);
+    }
+
+    return await axiosApi.post<T>(path, payload, config);
+  } catch (error: any) {
+    if (!shouldFallbackToDemo(error)) {
+      throw error;
+    }
+
+    return (mockApi[method] as any)(path, payload, config) as ApiResponse<T>;
+  }
+};
+
 const mockApi: any = {
   get: async (path: string): ApiResponse<any> => {
     await delay(120);
@@ -363,4 +405,8 @@ const mockApi: any = {
   }
 };
 
-export const api = hasConfiguredApiUrl ? axiosApi : mockApi;
+export const api = {
+  get: <T = any>(path: string, config?: any) => requestWithFallback<T>("get", path, undefined, config),
+  post: <T = any>(path: string, payload?: any, config?: any) => requestWithFallback<T>("post", path, payload, config),
+  delete: <T = any>(path: string, config?: any) => requestWithFallback<T>("delete", path, undefined, config)
+};
