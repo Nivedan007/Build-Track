@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { AlertTriangle, ArrowRight, Brain, Calculator, LineChart, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowRight, BadgeAlert, Brain, Calculator, LineChart, Sparkles, SlidersHorizontal, Target } from "lucide-react";
 import { TopBar } from "@/components/layout/TopBar";
 import { api } from "@/lib/api";
 import { useRoleGuard } from "@/hooks/useRoleGuard";
@@ -13,6 +13,16 @@ type Result = {
   riskBand: "LOW" | "MEDIUM" | "HIGH";
 };
 
+type OptimizationResult = {
+  efficiencyScore: number;
+  efficiencyBand: "LOW" | "MEDIUM" | "HIGH";
+  recommendedCrewSize: number;
+  recommendedOvertimeHours: number;
+  expectedProductivityGain: number;
+  priorityActions: string[];
+  bottlenecks: Array<{ label: string; risk: number }>;
+};
+
 const defaultForm = {
   weatherRisk: 0.28,
   pastDelays: 1,
@@ -21,12 +31,26 @@ const defaultForm = {
   currentProgress: 61
 };
 
+const optimizationDefaultForm = {
+  weatherRisk: 0.24,
+  crewUtilization: 0.82,
+  materialReadiness: 0.79,
+  taskBacklog: 6,
+  overtimeHours: 4,
+  currentProgress: 64,
+  skillMatch: 0.84
+};
+
 export default function AiAnalystPage() {
   const gate = useRoleGuard(["ADMIN", "PROJECT_MANAGER", "SITE_ENGINEER", "CLIENT", "WORKER"]);
   const [form, setForm] = useState(defaultForm);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<Result | null>(null);
+  const [optimizationForm, setOptimizationForm] = useState(optimizationDefaultForm);
+  const [optimizationLoading, setOptimizationLoading] = useState(false);
+  const [optimizationError, setOptimizationError] = useState("");
+  const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(null);
 
   const summary = useMemo(() => {
     if (!result) return { title: "Run an assessment", description: "Tune the inputs and generate a delay forecast in seconds." };
@@ -54,6 +78,21 @@ export default function AiAnalystPage() {
       setError(err.response?.data?.message || "Unable to run prediction right now.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOptimizationSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setOptimizationLoading(true);
+    setOptimizationError("");
+
+    try {
+      const response = await api.post("/ai/optimize-workflow", optimizationForm);
+      setOptimizationResult(response.data);
+    } catch (err: any) {
+      setOptimizationError(err.response?.data?.message || "Unable to optimize workflow right now.");
+    } finally {
+      setOptimizationLoading(false);
     }
   };
 
@@ -203,6 +242,149 @@ export default function AiAnalystPage() {
               ) : (
                 <div className="mt-5 rounded-2xl border border-dashed border-slate-700/70 bg-slate-950/30 p-8 text-sm text-slate-400">
                   Your prediction result will appear here after the first assessment.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+          <motion.form
+            onSubmit={handleOptimizationSubmit}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="panel rounded-3xl p-6"
+          >
+            <div className="mb-5 flex items-center gap-2">
+              <SlidersHorizontal className="h-4 w-4 text-emerald-300" />
+              <h3 className="text-lg font-semibold">Workflow Efficiency Optimizer</h3>
+            </div>
+
+            <p className="mb-5 text-sm text-slate-300">
+              Generate an efficient resource plan using crew load, material readiness, backlog, overtime, weather, and skill matching.
+            </p>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Crew utilization <span className="text-slate-400">{Math.round(optimizationForm.crewUtilization * 100)}%</span>
+                </span>
+                <input type="range" min="0.35" max="1" step="0.01" value={optimizationForm.crewUtilization} onChange={(e) => setOptimizationForm((v) => ({ ...v, crewUtilization: Number(e.target.value) }))} className="w-full accent-emerald-300" />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Material readiness <span className="text-slate-400">{Math.round(optimizationForm.materialReadiness * 100)}%</span>
+                </span>
+                <input type="range" min="0.35" max="1" step="0.01" value={optimizationForm.materialReadiness} onChange={(e) => setOptimizationForm((v) => ({ ...v, materialReadiness: Number(e.target.value) }))} className="w-full accent-sky-400" />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Task backlog <span className="text-slate-400">{optimizationForm.taskBacklog}</span>
+                </span>
+                <input type="range" min="0" max="25" step="1" value={optimizationForm.taskBacklog} onChange={(e) => setOptimizationForm((v) => ({ ...v, taskBacklog: Number(e.target.value) }))} className="w-full accent-amber-300" />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Overtime hours <span className="text-slate-400">{optimizationForm.overtimeHours}</span>
+                </span>
+                <input type="range" min="0" max="16" step="1" value={optimizationForm.overtimeHours} onChange={(e) => setOptimizationForm((v) => ({ ...v, overtimeHours: Number(e.target.value) }))} className="w-full accent-rose-300" />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Weather risk <span className="text-slate-400">{optimizationForm.weatherRisk.toFixed(2)}</span>
+                </span>
+                <input type="range" min="0" max="1" step="0.01" value={optimizationForm.weatherRisk} onChange={(e) => setOptimizationForm((v) => ({ ...v, weatherRisk: Number(e.target.value) }))} className="w-full accent-sky-400" />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Skill match <span className="text-slate-400">{Math.round(optimizationForm.skillMatch * 100)}%</span>
+                </span>
+                <input type="range" min="0.35" max="1" step="0.01" value={optimizationForm.skillMatch} onChange={(e) => setOptimizationForm((v) => ({ ...v, skillMatch: Number(e.target.value) }))} className="w-full accent-emerald-300" />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300 md:col-span-2">
+                <span className="flex items-center justify-between">
+                  Current progress <span className="text-slate-400">{optimizationForm.currentProgress}%</span>
+                </span>
+                <input type="range" min="0" max="100" step="1" value={optimizationForm.currentProgress} onChange={(e) => setOptimizationForm((v) => ({ ...v, currentProgress: Number(e.target.value) }))} className="w-full accent-sky-400" />
+              </label>
+            </div>
+
+            {optimizationError && <p className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{optimizationError}</p>}
+
+            <button
+              type="submit"
+              disabled={optimizationLoading}
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-emerald-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-emerald-300 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {optimizationLoading ? "Optimizing..." : "Optimize Workflow"}
+              <Target className="h-4 w-4" />
+            </button>
+          </motion.form>
+
+          <div className="space-y-4">
+            <div className="panel rounded-3xl p-6">
+              <div className="flex items-center gap-2">
+                <BadgeAlert className="h-4 w-4 text-emerald-300" />
+                <h3 className="text-lg font-semibold">Efficiency Output</h3>
+              </div>
+
+              {optimizationResult ? (
+                <div className="mt-5 space-y-4">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-2xl border border-slate-700/60 bg-slate-950/35 p-4">
+                      <p className="text-xs uppercase tracking-wider text-slate-400">Efficiency Score</p>
+                      <p className="mt-2 text-3xl font-semibold text-emerald-200">{Math.round(optimizationResult.efficiencyScore)}%</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-700/60 bg-slate-950/35 p-4">
+                      <p className="text-xs uppercase tracking-wider text-slate-400">Crew Size</p>
+                      <p className={`mt-2 text-3xl font-semibold ${optimizationResult.efficiencyBand === "HIGH" ? "text-emerald-300" : optimizationResult.efficiencyBand === "MEDIUM" ? "text-amber-300" : "text-rose-300"}`}>
+                        {optimizationResult.recommendedCrewSize}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-700/60 bg-slate-950/35 p-4">
+                      <p className="text-xs uppercase tracking-wider text-slate-400">Overtime Cap</p>
+                      <p className="mt-2 text-3xl font-semibold text-sky-200">{optimizationResult.recommendedOvertimeHours}h</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-700/60 bg-slate-950/35 p-5">
+                    <p className="text-sm uppercase tracking-wider text-slate-400">Priority Actions</p>
+                    <ul className="mt-3 space-y-2 text-sm text-slate-200">
+                      {optimizationResult.priorityActions.map((action) => (
+                        <li key={action} className="flex items-start gap-2">
+                          <span className="mt-2 h-2 w-2 rounded-full bg-emerald-300" />
+                          <span>{action}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="grid gap-3 md:grid-cols-3">
+                    {optimizationResult.bottlenecks.map((item) => (
+                      <div key={item.label} className="rounded-2xl border border-slate-700/60 bg-slate-950/35 p-4">
+                        <p className="text-xs uppercase tracking-wider text-slate-400">{item.label}</p>
+                        <p className="mt-2 text-2xl font-semibold text-slate-100">{Math.round(item.risk)}%</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rounded-2xl border border-emerald-300/20 bg-emerald-400/10 p-5 text-sm text-slate-100">
+                    <div className="flex items-center gap-2 font-semibold text-emerald-100">
+                      <Target className="h-4 w-4" />
+                      Expected productivity gain
+                    </div>
+                    <p className="mt-2 text-slate-200">+{optimizationResult.expectedProductivityGain}% if you follow the recommended actions this cycle.</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-5 rounded-2xl border border-dashed border-slate-700/70 bg-slate-950/30 p-8 text-sm text-slate-400">
+                  Your efficiency plan will appear here after the first optimization.
                 </div>
               )}
             </div>

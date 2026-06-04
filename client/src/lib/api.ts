@@ -18,6 +18,16 @@ type ForecastPayload = {
   currentProgress?: number;
 };
 
+type OptimizationPayload = {
+  weatherRisk?: number;
+  crewUtilization?: number;
+  materialReadiness?: number;
+  taskBacklog?: number;
+  overtimeHours?: number;
+  currentProgress?: number;
+  skillMatch?: number;
+};
+
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const createAxiosError = (status: number, message: string) => ({
@@ -47,6 +57,52 @@ const buildForecast = (payload: ForecastPayload) => {
   const estimatedCompletionDate = new Date(Date.now() + dateOffsetDays * 24 * 60 * 60 * 1000).toISOString();
 
   return { delayProbability, estimatedCompletionDate, riskBand } as const;
+};
+
+const buildOptimization = (payload: OptimizationPayload) => {
+  const weatherRisk = payload.weatherRisk ?? 0;
+  const crewUtilization = payload.crewUtilization ?? 0.8;
+  const materialReadiness = payload.materialReadiness ?? 0.8;
+  const taskBacklog = payload.taskBacklog ?? 0;
+  const overtimeHours = payload.overtimeHours ?? 0;
+  const currentProgress = payload.currentProgress ?? 0;
+  const skillMatch = payload.skillMatch ?? 0.8;
+
+  const efficiencyScore = Math.max(
+    0,
+    Math.min(
+      100,
+      32 * crewUtilization +
+        22 * materialReadiness +
+        16 * skillMatch +
+        14 * (1 - weatherRisk) +
+        10 * (1 - Math.min(taskBacklog, 25) / 25) +
+        6 * (1 - Math.min(overtimeHours, 24) / 24) +
+        4 * (currentProgress / 100)
+    )
+  );
+
+  const actions = [
+    materialReadiness < 0.7 ? "Lock supplier deliveries for critical materials" : "Maintain current supply cadence",
+    crewUtilization < 0.75 ? "Rebalance site crew assignments to reduce idle time" : "Keep crew allocation steady",
+    taskBacklog > 10 ? "Split backlog into smaller work packets and prioritize blockers" : "Backlog is manageable",
+    weatherRisk > 0.55 ? "Move weather-sensitive tasks earlier in the shift" : "Weather risk is acceptable",
+    overtimeHours > 8 ? "Cap overtime and shift to better-rested crews" : "Overtime is within range"
+  ].filter(Boolean);
+
+  return {
+    efficiencyScore: Number(efficiencyScore.toFixed(2)),
+    efficiencyBand: efficiencyScore >= 80 ? "HIGH" : efficiencyScore >= 60 ? "MEDIUM" : "LOW",
+    recommendedCrewSize: Math.max(2, Math.round(4 + taskBacklog / 8 + weatherRisk * 2)),
+    recommendedOvertimeHours: Math.max(0, Math.min(12, Math.round((100 - efficiencyScore) / 14))),
+    expectedProductivityGain: Number(Math.min(18, Math.max(0, (100 - efficiencyScore) * 0.18)).toFixed(2)),
+    priorityActions: actions.slice(0, 5),
+    bottlenecks: [
+      { label: "Materials", risk: Number(((1 - materialReadiness) * 100).toFixed(2)) },
+      { label: "Crew", risk: Number(((1 - crewUtilization) * 100).toFixed(2)) },
+      { label: "Weather", risk: Number((weatherRisk * 100).toFixed(2)) }
+    ]
+  };
 };
 
 export const getAssistantReply = (message: string) => {
@@ -345,6 +401,10 @@ const mockApi: any = {
 
       case "/ai/predict-delay": {
         return { data: buildForecast(payload || {}) };
+      }
+
+      case "/ai/optimize-workflow": {
+        return { data: buildOptimization(payload || {}) };
       }
 
       case "/assistant/chat": {

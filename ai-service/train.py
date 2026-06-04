@@ -37,6 +37,42 @@ def generate_dataset(n: int = 1200) -> pd.DataFrame:
     )
 
 
+def generate_efficiency_dataset(n: int = 1200) -> pd.DataFrame:
+    rng = np.random.default_rng(84)
+    weather_risk = rng.uniform(0, 1, n)
+    crew_utilization = rng.uniform(0.45, 1.0, n)
+    material_readiness = rng.uniform(0.35, 1.0, n)
+    task_backlog = rng.integers(0, 25, n)
+    overtime_hours = rng.uniform(0, 16, n)
+    current_progress = rng.uniform(5, 95, n)
+    skill_match = rng.uniform(0.45, 1.0, n)
+
+    efficiency_score = (
+        0.28 * crew_utilization
+        + 0.22 * material_readiness
+        + 0.16 * skill_match
+        + 0.14 * (1 - weather_risk)
+        + 0.10 * (1 - (task_backlog / 25))
+        + 0.06 * (1 - (overtime_hours / 16))
+        + 0.04 * (current_progress / 100)
+    )
+
+    efficiency_score = np.clip((efficiency_score + rng.normal(0, 0.03, n)) * 100, 0, 100)
+
+    return pd.DataFrame(
+        {
+            "weatherRisk": weather_risk,
+            "crewUtilization": crew_utilization,
+            "materialReadiness": material_readiness,
+            "taskBacklog": task_backlog,
+            "overtimeHours": overtime_hours,
+            "currentProgress": current_progress,
+            "skillMatch": skill_match,
+            "efficiencyScore": efficiency_score,
+        }
+    )
+
+
 def main() -> None:
     base_dir = Path(__file__).resolve().parent
     model_dir = base_dir / "model"
@@ -64,7 +100,28 @@ def main() -> None:
     model.fit(X_train, y_train)
 
     joblib.dump(model, model_dir / "delay_model.pkl")
+
+    efficiency_data = generate_efficiency_dataset()
+    efficiency_features = [
+        "weatherRisk",
+        "crewUtilization",
+        "materialReadiness",
+        "taskBacklog",
+        "overtimeHours",
+        "currentProgress",
+        "skillMatch",
+    ]
+
+    X_eff = efficiency_data[efficiency_features]
+    y_eff = efficiency_data["efficiencyScore"]
+    X_eff_train, _, y_eff_train, _ = train_test_split(X_eff, y_eff, test_size=0.2, random_state=84)
+
+    efficiency_model = RandomForestRegressor(n_estimators=260, random_state=84)
+    efficiency_model.fit(X_eff_train, y_eff_train)
+
+    joblib.dump(efficiency_model, model_dir / "efficiency_model.pkl")
     print("Model training complete. Saved to ai-service/model/delay_model.pkl")
+    print("Efficiency optimizer complete. Saved to ai-service/model/efficiency_model.pkl")
 
 
 if __name__ == "__main__":

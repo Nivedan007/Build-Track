@@ -25,4 +25,25 @@ router.post("/predict-delay", requireAuth, async (req, res) => {
   return res.json(response.data);
 });
 
+router.post("/optimize-workflow", requireAuth, async (req, res) => {
+  const parsed = z
+    .object({
+      weatherRisk: z.number().min(0).max(1),
+      crewUtilization: z.number().min(0).max(1),
+      materialReadiness: z.number().min(0).max(1),
+      taskBacklog: z.number().int().min(0),
+      overtimeHours: z.number().min(0).max(24),
+      currentProgress: z.number().min(0).max(100),
+      skillMatch: z.number().min(0).max(1)
+    })
+    .safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({ message: "Validation failed", errors: parsed.error.flatten() });
+  }
+
+  const response = await axios.post(`${env.aiServiceUrl}/optimize-workflow`, parsed.data);
+  return res.json(response.data);
+});
+
 export default router;
