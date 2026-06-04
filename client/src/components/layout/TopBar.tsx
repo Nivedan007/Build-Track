@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from "framer-motion";
 const navItems = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/ai-analyst", label: "AI Analyst" },
+  { href: "/predictive-maintenance", label: "Equipment AI" },
   { href: "/projects", label: "Projects" },
   { href: "/designer", label: "Designer" },
   { href: "/designs", label: "Designs" },

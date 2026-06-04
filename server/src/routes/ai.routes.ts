@@ -98,4 +98,30 @@ router.post("/predict-safety-risk", requireAuth, async (req, res) => {
   }
 });
 
+router.post("/predict-equipment-failure", requireAuth, async (req, res) => {
+  const parsed = z
+    .object({
+      operatingHours: z.number().int().min(0),
+      vibrationLevel: z.number().min(0),
+      oilQuality: z.number().min(0).max(1),
+      engineTemperature: z.number().min(0),
+      equipmentAge: z.number().int().min(0),
+      daysSinceLastMaintenance: z.number().int().min(0),
+      overloadEvents: z.number().int().min(0)
+    })
+    .safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({ message: "Validation failed", errors: parsed.error.flatten() });
+  }
+
+  try {
+    const response = await axios.post(`${env.aiServiceUrl}/predict-equipment-failure`, parsed.data);
+    return res.json(response.data);
+  } catch (error: any) {
+    console.error("AI Service Error:", error.message);
+    return res.status(500).json({ message: "AI service failed to process request" });
+  }
+});
+
 export default router;

@@ -3,7 +3,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingClassifier
 from sklearn.model_selection import train_test_split
 
 
@@ -145,6 +145,40 @@ def generate_safety_risk_dataset(n: int = 1200) -> pd.DataFrame:
     )
 
 
+def generate_equipment_dataset(n: int = 1200) -> pd.DataFrame:
+    rng = np.random.default_rng(256)
+    operating_hours = rng.integers(100, 10000, n)
+    vibration_level = rng.uniform(0.5, 12.0, n)
+    oil_quality = rng.uniform(0.0, 1.0, n)
+    engine_temp = rng.uniform(55.0, 115.0, n)
+    equipment_age = rng.integers(0, 12, n)
+    days_since_maintenance = rng.integers(0, 150, n)
+    overload_events = rng.integers(0, 15, n)
+
+    failure_risk = (
+        0.15 * (operating_hours / 10000)
+        + 0.20 * (vibration_level / 12.0)
+        + 0.15 * oil_quality
+        + 0.20 * ((engine_temp - 55) / 60.0)
+        + 0.10 * (equipment_age / 12.0)
+        + 0.10 * (days_since_maintenance / 150.0)
+        + 0.10 * (overload_events / 15.0)
+    )
+    failure_risk = np.clip(failure_risk + rng.normal(0, 0.02, n), 0, 1)
+    failure = (failure_risk > 0.55).astype(int)
+
+    return pd.DataFrame({
+        "operatingHours": operating_hours,
+        "vibrationLevel": vibration_level,
+        "oilQuality": oil_quality,
+        "engineTemperature": engine_temp,
+        "equipmentAge": equipment_age,
+        "daysSinceLastMaintenance": days_since_maintenance,
+        "overloadEvents": overload_events,
+        "failure": failure
+    })
+
+
 def main() -> None:
     base_dir = Path(__file__).resolve().parent
     model_dir = base_dir / "model"
@@ -237,10 +271,34 @@ def main() -> None:
 
     joblib.dump(safety_model, model_dir / "safety_risk_model.pkl")
 
+    # Equipment predictive maintenance model
+    equipment_data = generate_equipment_dataset()
+    equipment_data.to_csv(dataset_dir / "equipment_telemetry.csv", index=False)
+
+    equipment_features = [
+        "operatingHours",
+        "vibrationLevel",
+        "oilQuality",
+        "engineTemperature",
+        "equipmentAge",
+        "daysSinceLastMaintenance",
+        "overloadEvents",
+    ]
+
+    X_eq = equipment_data[equipment_features]
+    y_eq = equipment_data["failure"]
+    X_eq_train, _, y_eq_train, _ = train_test_split(X_eq, y_eq, test_size=0.2, random_state=256)
+
+    equipment_model = GradientBoostingClassifier(n_estimators=200, random_state=256)
+    equipment_model.fit(X_eq_train, y_eq_train)
+
+    joblib.dump(equipment_model, model_dir / "equipment_model.pkl")
+
     print("Model training complete. Saved to ai-service/model/delay_model.pkl")
     print("Efficiency optimizer complete. Saved to ai-service/model/efficiency_model.pkl")
     print("Cost risk model complete. Saved to ai-service/model/cost_risk_model.pkl")
     print("Safety incident risk model complete. Saved to ai-service/model/safety_risk_model.pkl")
+    print("Equipment predictive maintenance model complete. Saved to ai-service/model/equipment_model.pkl")
 
 
 if __name__ == "__main__":

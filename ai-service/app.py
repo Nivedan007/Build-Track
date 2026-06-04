@@ -12,6 +12,7 @@ MODEL_PATH = Path(__file__).resolve().parent / "model" / "delay_model.pkl"
 EFFICIENCY_MODEL_PATH = Path(__file__).resolve().parent / "model" / "efficiency_model.pkl"
 COST_MODEL_PATH = Path(__file__).resolve().parent / "model" / "cost_risk_model.pkl"
 SAFETY_MODEL_PATH = Path(__file__).resolve().parent / "model" / "safety_risk_model.pkl"
+EQUIPMENT_MODEL_PATH = Path(__file__).resolve().parent / "model" / "equipment_model.pkl"
 
 model = None
 if MODEL_PATH.exists():
@@ -28,6 +29,10 @@ if COST_MODEL_PATH.exists():
 safety_model = None
 if SAFETY_MODEL_PATH.exists():
     safety_model = joblib.load(SAFETY_MODEL_PATH)
+
+equipment_model = None
+if EQUIPMENT_MODEL_PATH.exists():
+    equipment_model = joblib.load(EQUIPMENT_MODEL_PATH)
 
 
 class DelayInput(BaseModel):
@@ -76,6 +81,7 @@ def health() -> dict:
         "efficiencyModelLoaded": efficiency_model is not None,
         "costModelLoaded": cost_model is not None,
         "safetyModelLoaded": safety_model is not None,
+        "equipmentModelLoaded": equipment_model is not None,
         "service": "buildtrack-ai"
     }
 
@@ -285,5 +291,78 @@ def predict_safety_risk(payload: SafetyRiskInput) -> dict:
         "safetyIncidentProbability": round(safety_prob, 4),
         "riskBand": "HIGH" if safety_prob > 0.45 else "MEDIUM" if safety_prob > 0.20 else "LOW",
         "preventativeRecommendations": recommendations[:4]
+    }
+
+
+class EquipmentFailureInput(BaseModel):
+    operatingHours: int = Field(..., ge=0)
+    vibrationLevel: float = Field(..., ge=0)
+    oilQuality: float = Field(..., ge=0, le=1)
+    engineTemperature: float = Field(..., ge=0)
+    equipmentAge: int = Field(..., ge=0)
+    daysSinceLastMaintenance: int = Field(..., ge=0)
+    overloadEvents: int = Field(..., ge=0)
+
+
+@app.post("/predict-equipment-failure")
+def predict_equipment_failure(payload: EquipmentFailureInput) -> dict:
+    if equipment_model is None:
+        return {
+            "message": "Equipment model not loaded. Run train.py first.",
+            "failureProbability": 0.0,
+            "riskBand": "LOW",
+            "recommendedAction": "Status normal.",
+            "criticalComponent": "None"
+        }
+
+    values = np.array(
+        [[
+            payload.operatingHours,
+            payload.vibrationLevel,
+            payload.oilQuality,
+            payload.engineTemperature,
+            payload.equipmentAge,
+            payload.daysSinceLastMaintenance,
+            payload.overloadEvents,
+        ]]
+    )
+
+    raw_prediction = equipment_model.predict_proba(values)[0][1]
+    failure_prob = max(0.0, min(1.0, float(raw_prediction)))
+
+    actions = []
+    component = "None"
+    
+    if failure_prob > 0.70:
+        if payload.vibrationLevel > 8.0:
+            component = "Hydraulics & Bearings"
+            actions.append("HALT OPERATION: Extreme vibration detected. Inspect bearings and hydraulic pistons immediately.")
+        elif payload.engineTemperature > 105.0:
+            component = "Engine Cooling System"
+            actions.append("HALT OPERATION: Overheating danger. Inspect coolant levels, radiator fan, and engine oil.")
+        else:
+            component = "System Core"
+            actions.append("CRITICAL: Schedule emergency comprehensive mechanic teardown and testing.")
+    elif failure_prob > 0.35:
+        if payload.oilQuality > 0.75:
+            component = "Lubrication Circuit"
+            actions.append("URGENT: Change oil filter, flush lines, and renew engine oil before next shift.")
+        elif payload.daysSinceLastMaintenance > 120:
+            component = "Scheduled Maintenance"
+            actions.append("URGENT: General maintenance window is overdue. Schedule service within 48 operating hours.")
+        elif payload.overloadEvents > 8:
+            component = "Structural joints"
+            actions.append("WARNING: Excessive stress cycles. Conduct ultrasonic crack check on structural joints.")
+        else:
+            component = "System Ancillaries"
+            actions.append("WARNING: Degraded performance. Schedule standard inspection within 3 operational days.")
+    else:
+        actions.append("CONTINUE OPERATION: All diagnostic metrics within acceptable tolerances. Maintain standard daily inspection log.")
+
+    return {
+        "failureProbability": round(failure_prob, 4),
+        "riskBand": "HIGH" if failure_prob > 0.65 else "MEDIUM" if failure_prob > 0.30 else "LOW",
+        "recommendedAction": actions[0],
+        "criticalComponent": component
     }
 

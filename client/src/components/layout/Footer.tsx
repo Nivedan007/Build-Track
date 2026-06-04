@@ -39,6 +39,7 @@ export function Footer() {
         <div className="flex flex-wrap gap-4">
           <Link href="/dashboard" className="transition hover:text-white">Dashboard</Link>
           <Link href="/ai-analyst" className="transition hover:text-white">AI Analyst</Link>
+          <Link href="/predictive-maintenance" className="transition hover:text-white">Equipment AI</Link>
           <Link href="/reports" className="transition hover:text-white">Reports</Link>
         </div>
       </div>
