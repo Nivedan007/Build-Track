@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FileText, Upload, Download, Trash2, Search, Filter, Plus } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuthStore } from "@/lib/store";
@@ -54,12 +54,36 @@ const typeColors = {
   other: "bg-slate-500/10 text-slate-300"
 };
 
+const DOCUMENTS_KEY = "buildtrack-documents";
+
 export default function DocumentsPage() {
   const token = useAuthStore((state) => state.token);
   const { addNotification } = useNotifications();
   const [documents, setDocuments] = useState<Document[]>(mockDocuments);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(DOCUMENTS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        setDocuments(parsed);
+      }
+    } catch (error) {
+      console.error(error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(DOCUMENTS_KEY, JSON.stringify(documents));
+    } catch (error) {
+      console.error(error);
+    }
+  }, [documents]);
 
   if (!token) {
     return (
@@ -76,7 +100,7 @@ export default function DocumentsPage() {
   });
 
   const handleDelete = (id: string) => {
-    setDocuments(documents.filter((d) => d.id !== id));
+    setDocuments((current) => current.filter((d) => d.id !== id));
     addNotification({
       type: "success",
       title: "Document deleted",
@@ -85,11 +109,48 @@ export default function DocumentsPage() {
   };
 
   const handleUpload = () => {
+    fileInputRef.current?.click();
+  };
+
+  const onFileSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const nextDoc: Document = {
+      id: `${Date.now()}`,
+      name: file.name,
+      type: file.type.includes("pdf") ? "contract" : file.type.startsWith("image/") ? "spec" : "other",
+      size: `${(file.size / 1024 / 1024).toFixed(1)} MB`,
+      date: new Date().toISOString().slice(0, 10),
+      url: URL.createObjectURL(file)
+    };
+
+    setDocuments((current) => [nextDoc, ...current]);
     addNotification({
-      type: "info",
-      title: "Upload started",
-      message: "File upload will begin shortly"
+      type: "success",
+      title: "Document uploaded",
+      message: `${file.name} was added successfully`
     });
+
+    event.target.value = "";
+  };
+
+  const handleDownload = (doc: Document) => {
+    if (doc.url) {
+      const link = document.createElement("a");
+      link.href = doc.url;
+      link.download = doc.name;
+      link.click();
+      return;
+    }
+
+    const blob = new Blob([`BuildTrack document: ${doc.name}`], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${doc.name}.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -109,6 +170,7 @@ export default function DocumentsPage() {
               <Plus className="h-5 w-5" />
               Upload Document
             </button>
+            <input ref={fileInputRef} type="file" className="hidden" onChange={onFileSelected} />
           </div>
 
           {/* Search and Filter */}
@@ -155,7 +217,10 @@ export default function DocumentsPage() {
                     <span>{new Date(doc.date).toLocaleDateString()}</span>
                   </div>
                   <div className="mt-4 flex gap-2">
-                    <button className="flex-1 flex items-center justify-center gap-1 py-2 bg-slate-900/50 hover:bg-slate-800/50 rounded transition text-slate-300 text-sm">
+                    <button
+                      className="flex-1 flex items-center justify-center gap-1 py-2 bg-slate-900/50 hover:bg-slate-800/50 rounded transition text-slate-300 text-sm"
+                      onClick={() => handleDownload(doc)}
+                    >
                       <Download className="h-4 w-4" />
                       Download
                     </button>

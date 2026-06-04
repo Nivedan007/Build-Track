@@ -4,8 +4,10 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/store";
 import { UserCircle, Settings, LogOut, Lock, Eye, Bell, Palette } from "lucide-react";
 import { useNotifications } from "@/lib/notifications";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+
+const SETTINGS_KEY = "buildtrack-settings";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -17,6 +19,25 @@ export default function SettingsPage() {
     darkMode: true,
     twoFactorEnabled: false
   });
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(SETTINGS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      setSettings((current) => ({ ...current, ...parsed }));
+    } catch (error) {
+      console.error(error);
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch (error) {
+      console.error(error);
+    }
+  }, [settings]);
 
   if (!token) {
     return (
