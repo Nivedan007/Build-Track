@@ -145,6 +145,74 @@ async function main() {
     allUsers.forEach((u) => console.log(`- ${u.email} (${u.role}): ${u.id}`));
   }
 
+  // Seed sample floor plan designs if none exist
+  const designCount = await prisma.design.count();
+  if (designCount === 0) {
+    console.log("Seeding sample architectural designs...");
+    const sampleRes = {
+      walls: [
+        { id: "wall-ext-1", x: 0, z: -5, width: 12, depth: 0.2, height: 3, rotationY: 0, color: "#cbd5e1" },
+        { id: "wall-ext-2", x: 6, z: 0, width: 10, depth: 0.2, height: 3, rotationY: 1.5707963267948966, color: "#cbd5e1" },
+        { id: "wall-ext-3", x: 0, z: 5, width: 12, depth: 0.2, height: 3, rotationY: 0, color: "#cbd5e1" },
+        { id: "wall-ext-4", x: -6, z: 0, width: 10, depth: 0.2, height: 3, rotationY: 1.5707963267948966, color: "#cbd5e1" },
+        { id: "wall-int-bed1-v", x: -2, z: -3, width: 4, depth: 0.15, height: 3, rotationY: 1.5707963267948966, color: "#94a3b8" },
+        { id: "wall-int-bed1-h", x: -4, z: -1, width: 4, depth: 0.15, height: 3, rotationY: 0, color: "#94a3b8" },
+        { id: "wall-int-kitchen-v", x: 2, z: -3, width: 4, depth: 0.15, height: 3, rotationY: 1.5707963267948966, color: "#94a3b8" },
+        { id: "wall-int-kitchen-h", x: 4, z: -1, width: 4, depth: 0.15, height: 3, rotationY: 0, color: "#94a3b8" },
+        { id: "wall-int-bath-v", x: 0, z: 2.5, width: 5, depth: 0.15, height: 3, rotationY: 1.5707963267948966, color: "#94a3b8" }
+      ],
+      openings: [
+        { id: "op-door-main", wallId: "wall-ext-3", kind: "door", offset: 1.5, width: 1.0, height: 2.2, sillHeight: 0 },
+        { id: "op-door-bed1", wallId: "wall-int-bed1-h", kind: "door", offset: 0.8, width: 0.9, height: 2.1, sillHeight: 0 },
+        { id: "op-door-kitchen", wallId: "wall-int-kitchen-h", kind: "door", offset: -0.8, width: 0.9, height: 2.1, sillHeight: 0 },
+        { id: "op-door-bath", wallId: "wall-int-bath-v", kind: "door", offset: 0.5, width: 0.8, height: 2.1, sillHeight: 0 },
+        { id: "op-win-bed1", wallId: "wall-ext-4", kind: "window", offset: -2.0, width: 1.5, height: 1.5, sillHeight: 0.8 },
+        { id: "op-win-kitchen", wallId: "wall-ext-2", kind: "window", offset: -2.0, width: 1.2, height: 1.2, sillHeight: 1.0 },
+        { id: "op-win-living", wallId: "wall-ext-1", kind: "window", offset: 2.0, width: 2.0, height: 1.5, sillHeight: 0.8 }
+      ],
+      camera: { mode: "orthographic", preset: "iso" }
+    };
+
+    const sampleOff = {
+      walls: [
+        { id: "off-ext-1", x: 0, z: -6, width: 16, depth: 0.2, height: 3.2, rotationY: 0, color: "#cbd5e1" },
+        { id: "off-ext-2", x: 8, z: 0, width: 12, depth: 0.2, height: 3.2, rotationY: 1.5707963267948966, color: "#cbd5e1" },
+        { id: "off-ext-3", x: 0, z: 6, width: 16, depth: 0.2, height: 3.2, rotationY: 0, color: "#cbd5e1" },
+        { id: "off-ext-4", x: -8, z: 0, width: 12, depth: 0.2, height: 3.2, rotationY: 1.5707963267948966, color: "#cbd5e1" },
+        { id: "off-int-exec1-v", x: -4, z: -2, width: 8, depth: 0.15, height: 3.2, rotationY: 1.5707963267948966, color: "#a1a1aa" },
+        { id: "off-int-exec1-h", x: -6, z: 2, width: 4, depth: 0.15, height: 3.2, rotationY: 0, color: "#a1a1aa" },
+        { id: "off-int-exec2-h", x: -2, z: 2, width: 4, depth: 0.15, height: 3.2, rotationY: 0, color: "#a1a1aa" },
+        { id: "off-int-conf-v", x: 3, z: 0, width: 12, depth: 0.15, height: 3.2, rotationY: 1.5707963267948966, color: "#a1a1aa" }
+      ],
+      openings: [
+        { id: "off-door-main", wallId: "off-ext-3", kind: "door", offset: 0, width: 1.6, height: 2.4, sillHeight: 0 },
+        { id: "off-door-exec1", wallId: "off-int-exec1-h", kind: "door", offset: 1.0, width: 0.9, height: 2.1, sillHeight: 0 },
+        { id: "off-door-exec2", wallId: "off-int-exec2-h", kind: "door", offset: -1.0, width: 0.9, height: 2.1, sillHeight: 0 },
+        { id: "off-door-conf", wallId: "off-int-conf-v", kind: "door", offset: 2.0, width: 1.0, height: 2.2, sillHeight: 0 },
+        { id: "off-win-exec1", wallId: "off-ext-4", kind: "window", offset: -2.5, width: 2.2, height: 1.8, sillHeight: 0.7 },
+        { id: "off-win-exec2", wallId: "off-ext-4", kind: "window", offset: 2.5, width: 2.2, height: 1.8, sillHeight: 0.7 },
+        { id: "off-win-conf", wallId: "off-ext-2", kind: "window", offset: 0, width: 4.0, height: 2.0, sillHeight: 0.6 }
+      ],
+      camera: { mode: "perspective", preset: "iso" }
+    };
+
+    await prisma.design.create({
+      data: {
+        name: "Luxury 2BHK Residential Floor Plan",
+        data: sampleRes
+      }
+    });
+
+    await prisma.design.create({
+      data: {
+        name: "Commercial Office Executive Layout",
+        data: sampleOff
+      }
+    });
+
+    console.log("Architectural designs seeded successfully.");
+  }
+
   console.log("Seeding complete.");
 }
 
