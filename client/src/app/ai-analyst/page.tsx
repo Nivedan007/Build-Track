@@ -23,6 +23,13 @@ type OptimizationResult = {
   bottlenecks: Array<{ label: string; risk: number }>;
 };
 
+type CostRiskResult = {
+  costOverrunProbability: number;
+  expectedOverrunPercent: number;
+  riskBand: "LOW" | "MEDIUM" | "HIGH";
+  mitigationActions: string[];
+};
+
 const defaultForm = {
   weatherRisk: 0.28,
   pastDelays: 1,
@@ -41,6 +48,16 @@ const optimizationDefaultForm = {
   skillMatch: 0.84
 };
 
+const costDefaultForm = {
+  projectBudget: 500000,
+  durationDays: 90,
+  taskCount: 20,
+  highPriorityTaskCount: 2,
+  averageAttendanceRate: 0.90,
+  weatherRisk: 0.20,
+  materialShortages: 1
+};
+
 export default function AiAnalystPage() {
   const gate = useRoleGuard(["ADMIN", "PROJECT_MANAGER", "SITE_ENGINEER", "CLIENT", "WORKER"]);
   const [form, setForm] = useState(defaultForm);
@@ -51,6 +68,10 @@ export default function AiAnalystPage() {
   const [optimizationLoading, setOptimizationLoading] = useState(false);
   const [optimizationError, setOptimizationError] = useState("");
   const [optimizationResult, setOptimizationResult] = useState<OptimizationResult | null>(null);
+  const [costForm, setCostForm] = useState(costDefaultForm);
+  const [costLoading, setCostLoading] = useState(false);
+  const [costError, setCostError] = useState("");
+  const [costResult, setCostResult] = useState<CostRiskResult | null>(null);
 
   const summary = useMemo(() => {
     if (!result) return { title: "Run an assessment", description: "Tune the inputs and generate a delay forecast in seconds." };
@@ -93,6 +114,21 @@ export default function AiAnalystPage() {
       setOptimizationError(err.response?.data?.message || "Unable to optimize workflow right now.");
     } finally {
       setOptimizationLoading(false);
+    }
+  };
+
+  const handleCostSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setCostLoading(true);
+    setCostError("");
+
+    try {
+      const response = await api.post("/ai/predict-cost-overrun", costForm);
+      setCostResult(response.data);
+    } catch (err: any) {
+      setCostError(err.response?.data?.message || "Unable to run budget risk prediction right now.");
+    } finally {
+      setCostLoading(false);
     }
   };
 
@@ -385,6 +421,219 @@ export default function AiAnalystPage() {
               ) : (
                 <div className="mt-5 rounded-2xl border border-dashed border-slate-700/70 bg-slate-950/30 p-8 text-sm text-slate-400">
                   Your efficiency plan will appear here after the first optimization.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+          <motion.form
+            onSubmit={handleCostSubmit}
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="panel rounded-3xl p-6"
+          >
+            <div className="mb-5 flex items-center gap-2">
+              <Calculator className="h-4 w-4 text-amber-300" />
+              <h3 className="text-lg font-semibold">Cost & Budget Risk Inputs</h3>
+            </div>
+
+            <p className="mb-5 text-sm text-slate-300">
+              Estimate cost overrun probability and get proactive financial mitigation recommendations based on site workload and budget constraints.
+            </p>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="space-y-2 text-sm text-slate-300 md:col-span-2">
+                <span className="flex items-center justify-between">
+                  Project Budget (INR) <span className="text-slate-400">Rs. {new Intl.NumberFormat("en-IN").format(costForm.projectBudget)}</span>
+                </span>
+                <input
+                  type="range"
+                  min="50000"
+                  max="10000000"
+                  step="50000"
+                  value={costForm.projectBudget}
+                  onChange={(e) => setCostForm((v) => ({ ...v, projectBudget: Number(e.target.value) }))}
+                  className="w-full accent-amber-400"
+                />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Duration (Days) <span className="text-slate-400">{costForm.durationDays}</span>
+                </span>
+                <input
+                  type="range"
+                  min="15"
+                  max="365"
+                  step="5"
+                  value={costForm.durationDays}
+                  onChange={(e) => setCostForm((v) => ({ ...v, durationDays: Number(e.target.value) }))}
+                  className="w-full accent-sky-400"
+                />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Total Tasks <span className="text-slate-400">{costForm.taskCount}</span>
+                </span>
+                <input
+                  type="range"
+                  min="5"
+                  max="150"
+                  step="1"
+                  value={costForm.taskCount}
+                  onChange={(e) => {
+                    const val = Number(e.target.value);
+                    setCostForm((v) => ({
+                      ...v,
+                      taskCount: val,
+                      highPriorityTaskCount: Math.min(v.highPriorityTaskCount, val)
+                    }));
+                  }}
+                  className="w-full accent-emerald-300"
+                />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  High Priority Tasks <span className="text-slate-400">{costForm.highPriorityTaskCount}</span>
+                </span>
+                <input
+                  type="range"
+                  min="0"
+                  max={costForm.taskCount}
+                  step="1"
+                  value={costForm.highPriorityTaskCount}
+                  onChange={(e) => setCostForm((v) => ({ ...v, highPriorityTaskCount: Number(e.target.value) }))}
+                  className="w-full accent-rose-300"
+                />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Labor Attendance <span className="text-slate-400">{Math.round(costForm.averageAttendanceRate * 100)}%</span>
+                </span>
+                <input
+                  type="range"
+                  min="0.4"
+                  max="1.0"
+                  step="0.01"
+                  value={costForm.averageAttendanceRate}
+                  onChange={(e) => setCostForm((v) => ({ ...v, averageAttendanceRate: Number(e.target.value) }))}
+                  className="w-full accent-emerald-300"
+                />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Weather Risk <span className="text-slate-400">{costForm.weatherRisk.toFixed(2)}</span>
+                </span>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={costForm.weatherRisk}
+                  onChange={(e) => setCostForm((v) => ({ ...v, weatherRisk: Number(e.target.value) }))}
+                  className="w-full accent-sky-400"
+                />
+              </label>
+
+              <label className="space-y-2 text-sm text-slate-300">
+                <span className="flex items-center justify-between">
+                  Material Shortages <span className="text-slate-400">{costForm.materialShortages}</span>
+                </span>
+                <input
+                  type="range"
+                  min="0"
+                  max="10"
+                  step="1"
+                  value={costForm.materialShortages}
+                  onChange={(e) => setCostForm((v) => ({ ...v, materialShortages: Number(e.target.value) }))}
+                  className="w-full accent-amber-300"
+                />
+              </label>
+            </div>
+
+            {costError && <p className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{costError}</p>}
+
+            <button
+              type="submit"
+              disabled={costLoading}
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-3 font-semibold text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {costLoading ? "Analyzing Cost Risk..." : "Predict Budget Overrun"}
+              <LineChart className="h-4 w-4" />
+            </button>
+          </motion.form>
+
+          <div className="space-y-4">
+            <div className="panel rounded-3xl p-6">
+              <div className="flex items-center gap-2">
+                <BadgeAlert className="h-4 w-4 text-amber-300" />
+                <h3 className="text-lg font-semibold">Cost Risk Prediction Output</h3>
+              </div>
+
+              {costResult ? (
+                <div className="mt-5 space-y-4">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-2xl border border-slate-700/60 bg-slate-950/35 p-4">
+                      <p className="text-xs uppercase tracking-wider text-slate-400">Overrun Probability</p>
+                      <p className="mt-2 text-3xl font-semibold text-amber-200">{Math.round(costResult.costOverrunProbability * 100)}%</p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-700/60 bg-slate-950/35 p-4">
+                      <p className="text-xs uppercase tracking-wider text-slate-400">Risk Band</p>
+                      <p className={`mt-2 text-3xl font-semibold ${costResult.riskBand === "HIGH" ? "text-rose-300" : costResult.riskBand === "MEDIUM" ? "text-amber-300" : "text-emerald-300"}`}>
+                        {costResult.riskBand}
+                      </p>
+                    </div>
+                    <div className="rounded-2xl border border-slate-700/60 bg-slate-950/35 p-4">
+                      <p className="text-xs uppercase tracking-wider text-slate-400">Expected Overrun</p>
+                      <p className="mt-2 text-xl font-semibold text-rose-300">+{costResult.expectedOverrunPercent}%</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-700/60 bg-slate-950/35 p-5">
+                    <p className="text-sm uppercase tracking-wider text-slate-400">Estimated Overrun Amount</p>
+                    <p className="mt-2 text-3xl font-bold text-slate-100">
+                      Rs. {new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format((costForm.projectBudget * costResult.expectedOverrunPercent) / 100)}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Calculated from input budget of Rs. {new Intl.NumberFormat("en-IN").format(costForm.projectBudget)}
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-700/60 bg-slate-950/35 p-5">
+                    <p className="text-sm uppercase tracking-wider text-slate-400">Mitigation Actions</p>
+                    <ul className="mt-3 space-y-2 text-sm text-slate-200">
+                      {costResult.mitigationActions.map((action) => (
+                        <li key={action} className="flex items-start gap-2">
+                          <span className="mt-2 h-2 w-2 rounded-full bg-amber-300 animate-pulse" />
+                          <span>{action}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className={`rounded-2xl border p-5 text-sm ${costResult.riskBand === "HIGH" ? "border-rose-300/20 bg-rose-400/10 text-rose-100" : costResult.riskBand === "MEDIUM" ? "border-amber-300/20 bg-amber-400/10 text-amber-100" : "border-emerald-300/20 bg-emerald-400/10 text-emerald-100"}`}>
+                    <div className="flex items-center gap-2 font-semibold">
+                      <AlertTriangle className="h-4 w-4" />
+                      Financial Assessment Summary
+                    </div>
+                    <p className="mt-2 text-slate-200">
+                      {costResult.riskBand === "HIGH" 
+                        ? "High probability of overrun detected. Timeline compression or severe supplier shortage is jeopardizing current margins. Escalate budget reserves immediately."
+                        : costResult.riskBand === "MEDIUM"
+                        ? "Moderate cost risk. General schedule controls and vendor follow-up audits should suffice to protect margins."
+                        : "Low budget risk. Standard bi-weekly auditing is sufficient to track progress."}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-5 rounded-2xl border border-dashed border-slate-700/70 bg-slate-950/30 p-8 text-sm text-slate-400">
+                  Your budget overrun assessment will appear here after the first calculation.
                 </div>
               )}
             </div>

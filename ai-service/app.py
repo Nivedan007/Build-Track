@@ -10,6 +10,7 @@ app = FastAPI(title="BuildTrack AI Service", version="1.0.0")
 
 MODEL_PATH = Path(__file__).resolve().parent / "model" / "delay_model.pkl"
 EFFICIENCY_MODEL_PATH = Path(__file__).resolve().parent / "model" / "efficiency_model.pkl"
+COST_MODEL_PATH = Path(__file__).resolve().parent / "model" / "cost_risk_model.pkl"
 
 model = None
 if MODEL_PATH.exists():
@@ -18,6 +19,10 @@ if MODEL_PATH.exists():
 efficiency_model = None
 if EFFICIENCY_MODEL_PATH.exists():
     efficiency_model = joblib.load(EFFICIENCY_MODEL_PATH)
+
+cost_model = None
+if COST_MODEL_PATH.exists():
+    cost_model = joblib.load(COST_MODEL_PATH)
 
 
 class DelayInput(BaseModel):
@@ -38,11 +43,23 @@ class EfficiencyInput(BaseModel):
     skillMatch: float = Field(..., ge=0, le=1)
 
 
+class CostRiskInput(BaseModel):
+    projectBudget: float = Field(..., ge=1000)
+    durationDays: int = Field(..., ge=1)
+    taskCount: int = Field(..., ge=1)
+    highPriorityTaskCount: int = Field(..., ge=0)
+    averageAttendanceRate: float = Field(..., ge=0, le=1)
+    weatherRisk: float = Field(..., ge=0, le=1)
+    materialShortages: int = Field(..., ge=0)
+
+
 @app.get("/health")
 def health() -> dict:
     return {
         "ok": True,
         "modelLoaded": model is not None,
+        "efficiencyModelLoaded": efficiency_model is not None,
+        "costModelLoaded": cost_model is not None,
         "service": "buildtrack-ai"
     }
 
@@ -151,3 +168,57 @@ def optimize_workflow(payload: EfficiencyInput) -> dict:
             }
         ]
     }
+
+
+@app.post("/predict-cost-overrun")
+def predict_cost_overrun(payload: CostRiskInput) -> dict:
+    if cost_model is None:
+        return {
+            "message": "Model not loaded. Run train.py first.",
+            "costOverrunProbability": 0.0,
+            "expectedOverrunPercent": 0.0,
+            "riskBand": "LOW",
+            "mitigationActions": ["Run train.py to initialize AI capabilities."]
+        }
+
+    values = np.array(
+        [[
+            payload.projectBudget,
+            payload.durationDays,
+            payload.taskCount,
+            payload.highPriorityTaskCount,
+            payload.averageAttendanceRate,
+            payload.weatherRisk,
+            payload.materialShortages,
+        ]]
+    )
+
+    raw_prediction = float(cost_model.predict(values)[0])
+    cost_overrun_prob = max(0.0, min(1.0, raw_prediction))
+
+    expected_overrun_pct = round(cost_overrun_prob * 35.0, 2)
+    
+    actions = []
+    priority_ratio = payload.highPriorityTaskCount / max(1, payload.taskCount)
+    
+    if payload.materialShortages > 3:
+        actions.append("Audit vendor supply chains and source alternative suppliers")
+    if payload.averageAttendanceRate < 0.75:
+        actions.append("Implement automated attendance tracking and daily labor incentives")
+    if payload.weatherRisk > 0.6:
+        actions.append("Schedule weather-contingent buffer periods in the project plan")
+    if priority_ratio > 0.2:
+        actions.append("De-escalate non-critical tasks to reallocate budget to key blockers")
+    if payload.durationDays < 60 and cost_overrun_prob > 0.4:
+        actions.append("Extend the project timeline slightly to avoid fast-tracking penalties")
+    
+    if not actions:
+        actions.append("Maintain existing cost control monitors and audit bi-weekly")
+
+    return {
+        "costOverrunProbability": round(cost_overrun_prob, 4),
+        "expectedOverrunPercent": expected_overrun_pct,
+        "riskBand": "HIGH" if cost_overrun_prob > 0.6 else "MEDIUM" if cost_overrun_prob > 0.3 else "LOW",
+        "mitigationActions": actions[:4]
+    }
+

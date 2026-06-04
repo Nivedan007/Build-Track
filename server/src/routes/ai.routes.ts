@@ -46,4 +46,30 @@ router.post("/optimize-workflow", requireAuth, async (req, res) => {
   return res.json(response.data);
 });
 
+router.post("/predict-cost-overrun", requireAuth, async (req, res) => {
+  const parsed = z
+    .object({
+      projectBudget: z.number().min(1000),
+      durationDays: z.number().int().min(1),
+      taskCount: z.number().int().min(1),
+      highPriorityTaskCount: z.number().int().min(0),
+      averageAttendanceRate: z.number().min(0).max(1),
+      weatherRisk: z.number().min(0).max(1),
+      materialShortages: z.number().int().min(0)
+    })
+    .safeParse(req.body);
+
+  if (!parsed.success) {
+    return res.status(400).json({ message: "Validation failed", errors: parsed.error.flatten() });
+  }
+
+  try {
+    const response = await axios.post(`${env.aiServiceUrl}/predict-cost-overrun`, parsed.data);
+    return res.json(response.data);
+  } catch (error: any) {
+    console.error("AI Service Error:", error.message);
+    return res.status(500).json({ message: "AI service failed to process request" });
+  }
+});
+
 export default router;

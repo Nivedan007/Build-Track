@@ -73,6 +73,42 @@ def generate_efficiency_dataset(n: int = 1200) -> pd.DataFrame:
     )
 
 
+def generate_cost_risk_dataset(n: int = 1200) -> pd.DataFrame:
+    rng = np.random.default_rng(168)
+    project_budget = rng.uniform(100000, 10000000, n)
+    duration_days = rng.integers(30, 365, n)
+    task_count = rng.integers(5, 100, n)
+    high_priority_task_count = np.array([rng.integers(0, max(1, tc // 4), 1)[0] for tc in task_count])
+    average_attendance_rate = rng.uniform(0.5, 1.0, n)
+    weather_risk = rng.uniform(0, 1, n)
+    material_shortages = rng.integers(0, 10, n)
+
+    priority_ratio = high_priority_task_count / np.maximum(1, task_count)
+    cost_risk = (
+        0.15 * (1 - average_attendance_rate)
+        + 0.20 * weather_risk
+        + 0.25 * (material_shortages / 10)
+        + 0.20 * priority_ratio
+        + 0.10 * (np.minimum(duration_days, 180) / 180)
+        + 0.10 * (1 - np.minimum(project_budget, 1000000) / 1000000)
+    )
+
+    cost_risk = np.clip(cost_risk + rng.normal(0, 0.03, n), 0, 1)
+
+    return pd.DataFrame(
+        {
+            "projectBudget": project_budget,
+            "durationDays": duration_days,
+            "taskCount": task_count,
+            "highPriorityTaskCount": high_priority_task_count,
+            "averageAttendanceRate": average_attendance_rate,
+            "weatherRisk": weather_risk,
+            "materialShortages": material_shortages,
+            "costOverrunProbability": cost_risk,
+        }
+    )
+
+
 def main() -> None:
     base_dir = Path(__file__).resolve().parent
     model_dir = base_dir / "model"
@@ -120,8 +156,32 @@ def main() -> None:
     efficiency_model.fit(X_eff_train, y_eff_train)
 
     joblib.dump(efficiency_model, model_dir / "efficiency_model.pkl")
+
+    cost_data = generate_cost_risk_dataset()
+    cost_data.to_csv(dataset_dir / "construction_costs.csv", index=False)
+
+    cost_features = [
+        "projectBudget",
+        "durationDays",
+        "taskCount",
+        "highPriorityTaskCount",
+        "averageAttendanceRate",
+        "weatherRisk",
+        "materialShortages",
+    ]
+
+    X_cost = cost_data[cost_features]
+    y_cost = cost_data["costOverrunProbability"]
+    X_cost_train, _, y_cost_train, _ = train_test_split(X_cost, y_cost, test_size=0.2, random_state=168)
+
+    cost_model = RandomForestRegressor(n_estimators=240, random_state=168)
+    cost_model.fit(X_cost_train, y_cost_train)
+
+    joblib.dump(cost_model, model_dir / "cost_risk_model.pkl")
+
     print("Model training complete. Saved to ai-service/model/delay_model.pkl")
     print("Efficiency optimizer complete. Saved to ai-service/model/efficiency_model.pkl")
+    print("Cost risk model complete. Saved to ai-service/model/cost_risk_model.pkl")
 
 
 if __name__ == "__main__":

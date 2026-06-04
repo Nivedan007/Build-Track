@@ -28,6 +28,16 @@ type OptimizationPayload = {
   skillMatch?: number;
 };
 
+type CostRiskPayload = {
+  projectBudget?: number;
+  durationDays?: number;
+  taskCount?: number;
+  highPriorityTaskCount?: number;
+  averageAttendanceRate?: number;
+  weatherRisk?: number;
+  materialShortages?: number;
+};
+
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const createAxiosError = (status: number, message: string) => ({
@@ -102,6 +112,49 @@ const buildOptimization = (payload: OptimizationPayload) => {
       { label: "Crew", risk: Number(((1 - crewUtilization) * 100).toFixed(2)) },
       { label: "Weather", risk: Number((weatherRisk * 100).toFixed(2)) }
     ]
+  };
+};
+
+const buildCostRisk = (payload: CostRiskPayload) => {
+  const projectBudget = payload.projectBudget ?? 500000;
+  const durationDays = payload.durationDays ?? 90;
+  const taskCount = payload.taskCount ?? 20;
+  const highPriorityTaskCount = payload.highPriorityTaskCount ?? 2;
+  const averageAttendanceRate = payload.averageAttendanceRate ?? 0.9;
+  const weatherRisk = payload.weatherRisk ?? 0.2;
+  const materialShortages = payload.materialShortages ?? 1;
+
+  const priorityRatio = highPriorityTaskCount / Math.max(1, taskCount);
+  const overrunProb = clamp(
+    0.15 * (1 - averageAttendanceRate) +
+      0.20 * weatherRisk +
+      0.25 * (materialShortages / 10) +
+      0.20 * priorityRatio +
+      0.10 * (Math.min(durationDays, 180) / 180) +
+      0.10 * (1 - Math.min(projectBudget, 1000000) / 1000000),
+    0.05,
+    0.95
+  );
+
+  const riskBand = overrunProb >= 0.6 ? "HIGH" : overrunProb >= 0.3 ? "MEDIUM" : "LOW";
+  const expectedOverrunPct = Number((overrunProb * 35.0).toFixed(2));
+  
+  const actions = [
+    materialShortages > 3 ? "Audit vendor supply chains and source alternative suppliers" : "",
+    averageAttendanceRate < 0.75 ? "Implement automated attendance tracking and daily labor incentives" : "",
+    weatherRisk > 0.6 ? "Schedule weather-contingent buffer periods in the project plan" : "",
+    priorityRatio > 0.2 ? "De-escalate non-critical tasks to reallocate budget to key blockers" : ""
+  ].filter(Boolean);
+
+  if (actions.length === 0) {
+    actions.push("Maintain existing cost control monitors and audit bi-weekly");
+  }
+
+  return {
+    costOverrunProbability: overrunProb,
+    expectedOverrunPercent: expectedOverrunPct,
+    riskBand,
+    mitigationActions: actions.slice(0, 4)
   };
 };
 
@@ -405,6 +458,10 @@ const mockApi: any = {
 
       case "/ai/optimize-workflow": {
         return { data: buildOptimization(payload || {}) };
+      }
+
+      case "/ai/predict-cost-overrun": {
+        return { data: buildCostRisk(payload || {}) };
       }
 
       case "/assistant/chat": {
