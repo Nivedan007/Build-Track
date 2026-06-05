@@ -222,6 +222,66 @@ const buildSafetyRisk = (payload: SafetyRiskPayload) => {
   };
 };
 
+const buildEquipmentFailure = (payload: any) => {
+  const operatingHours = payload.operatingHours ?? 0;
+  const vibrationLevel = payload.vibrationLevel ?? 0;
+  const oilQuality = payload.oilQuality ?? 0.5;
+  const engineTemperature = payload.engineTemperature ?? 70;
+  const equipmentAge = payload.equipmentAge ?? 3;
+  const daysSinceLastMaintenance = payload.daysSinceLastMaintenance ?? 30;
+  const overloadEvents = payload.overloadEvents ?? 0;
+
+  // Simple heuristic prediction modeling
+  let prob = 0.05;
+  prob += (operatingHours / 10000) * 0.15;
+  prob += (vibrationLevel / 15) * 0.25;
+  prob += oilQuality * 0.20;
+  prob += ((engineTemperature - 50) / 75) * 0.20;
+  prob += (equipmentAge / 15) * 0.10;
+  prob += (daysSinceLastMaintenance / 180) * 0.15;
+  prob += (overloadEvents / 20) * 0.15;
+
+  const failureProbability = clamp(prob, 0.01, 0.99);
+  const riskBand = failureProbability > 0.65 ? "HIGH" : failureProbability > 0.30 ? "MEDIUM" : "LOW";
+
+  let criticalComponent = "None";
+  let recommendedAction = "CONTINUE OPERATION: All diagnostic metrics within acceptable tolerances. Maintain standard daily inspection log.";
+
+  if (riskBand === "HIGH") {
+    if (vibrationLevel > 8.0) {
+      criticalComponent = "Hydraulics & Bearings";
+      recommendedAction = "HALT OPERATION: Extreme vibration detected. Inspect bearings and hydraulic pistons immediately.";
+    } else if (engineTemperature > 105.0) {
+      criticalComponent = "Engine Cooling System";
+      recommendedAction = "HALT OPERATION: Overheating danger. Inspect coolant levels, radiator fan, and engine oil.";
+    } else {
+      criticalComponent = "System Core";
+      recommendedAction = "CRITICAL: Schedule emergency comprehensive mechanic teardown and testing.";
+    }
+  } else if (riskBand === "MEDIUM") {
+    if (oilQuality > 0.75) {
+      criticalComponent = "Lubrication Circuit";
+      recommendedAction = "URGENT: Change oil filter, flush lines, and renew engine oil before next shift.";
+    } else if (daysSinceLastMaintenance > 120) {
+      criticalComponent = "Scheduled Maintenance";
+      recommendedAction = "URGENT: General maintenance window is overdue. Schedule service within 48 operating hours.";
+    } else if (overloadEvents > 8) {
+      criticalComponent = "Structural joints";
+      recommendedAction = "WARNING: Excessive stress cycles. Conduct ultrasonic crack check on structural joints.";
+    } else {
+      criticalComponent = "System Ancillaries";
+      recommendedAction = "WARNING: Degraded performance. Schedule standard inspection within 3 operational days.";
+    }
+  }
+
+  return {
+    failureProbability: Number(failureProbability.toFixed(4)),
+    riskBand,
+    recommendedAction,
+    criticalComponent
+  };
+};
+
 export const getAssistantReply = (message: string) => {
   const text = message.toLowerCase();
 
@@ -543,6 +603,10 @@ const mockApi: any = {
 
       case "/ai/predict-safety-risk": {
         return { data: buildSafetyRisk(payload || {}) };
+      }
+
+      case "/ai/predict-equipment-failure": {
+        return { data: buildEquipmentFailure(payload || {}) };
       }
 
       case "/assistant/chat": {
